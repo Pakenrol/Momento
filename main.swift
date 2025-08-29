@@ -148,13 +148,13 @@ struct ContentView: View {
                 Text("⚙️ Режим:")
                     .font(.headline)
                     .fontWeight(.semibold)
-                Picker("Режим", selection: $selectedMode) {
+                Picker("", selection: $selectedMode) {
                     ForEach(ProcessingMode.allCases, id: \.rawValue) { mode in
                         Text(mode.name).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 260)
+                .frame(maxWidth: 260, alignment: .leading)
             }
             .padding(.horizontal)
             // Кнопка запуска / остановки
@@ -699,6 +699,13 @@ struct ContentView: View {
                 outPipe.fileHandleForReading.readabilityHandler = nil
                 errPipe.fileHandleForReading.readabilityHandler = nil
                 if process.terminationStatus == 0 {
+                    // Проверяем количество обработанных кадров
+                    let processedCount = (try? FileManager.default.contentsOfDirectory(at: outputFramesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
+                    print("DEBUG: RealCUGAN обработал \(processedCount) кадров в \(outputFramesDir.path)")
+                    if processedCount == 0 {
+                        self.finishWithError("RealCUGAN не создал ни одного кадра")
+                        return
+                    }
                     self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
                 } else {
                     self.finishWithError("Ошибка обработки RealCUGAN")
@@ -756,6 +763,13 @@ struct ContentView: View {
                 outPipe.fileHandleForReading.readabilityHandler = nil
                 errPipe.fileHandleForReading.readabilityHandler = nil
                 if process.terminationStatus == 0 {
+                    // Проверяем количество обработанных кадров
+                    let processedCount = (try? FileManager.default.contentsOfDirectory(at: outputFramesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
+                    print("DEBUG: Waifu2x обработал \(processedCount) кадров в \(outputFramesDir.path)")
+                    if processedCount == 0 {
+                        self.finishWithError("Waifu2x не создал ни одного кадра")
+                        return
+                    }
                     self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
                 } else {
                     self.finishWithError("Ошибка обработки Waifu2x")
@@ -767,6 +781,13 @@ struct ContentView: View {
     private func reassembleVideo(framesDir: URL, originalVideo: URL, output: URL, tempDir: URL) {
         currentStep = "Сборка финального видео"
         currentStepIndex = 3
+        
+        // Диагностика кадров для сборки
+        let frameFiles = (try? FileManager.default.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == frameExtension }) ?? []
+        print("DEBUG: Для сборки найдено \(frameFiles.count) кадров типа .\(frameExtension) в \(framesDir.path)")
+        if frameFiles.count > 0 {
+            print("DEBUG: Первые 3 файла: \(frameFiles.prefix(3).map { $0.lastPathComponent })")
+        }
         // Получаем FPS оригинального видео
         let fps = getVideoFPS(url: originalVideo)
         let process = Process()
