@@ -667,8 +667,8 @@ struct ContentView: View {
             "-s", "2",
             "-n", "2",
             "-f", frameExtension,
-            "-t", "384",
-            "-j", "4:4:4",
+            "-t", "640",
+            "-j", "8:8:8",
             "-g", "0"
         ]
         self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
@@ -731,8 +731,8 @@ struct ContentView: View {
             "-s", "2",
             "-n", "2",
             "-f", frameExtension,
-            "-t", "384",
-            "-j", "4:4:4",
+            "-t", "640",
+            "-j", "8:8:8",
             "-g", "0"
         ]
         self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
