@@ -435,6 +435,25 @@ struct ContentView: View {
         runVSRPipeline(input: inputURL, width: targetWidth, height: targetHeight)
     }
 
+    // MARK: - Paths helpers
+    private func projectRoot() -> URL {
+        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/VidyScaler")
+    }
+    private func projectBin() -> URL {
+        projectRoot().appendingPathComponent("bin")
+    }
+    private func findBinary(_ name: String) -> String? {
+        let candidates = [
+            projectBin().appendingPathComponent(name).path,
+            "/opt/homebrew/bin/\(name)",
+            "/usr/local/bin/\(name)"
+        ]
+        for p in candidates {
+            if FileManager.default.isExecutableFile(atPath: p) { return p }
+        }
+        return nil
+    }
+
     private func runVSRPipeline(input: URL, width: Int, height: Int) {
         if areCoreMLModelsAvailable() {
             processVSRCoreML(input: input, width: width, height: height)
@@ -524,7 +543,7 @@ struct ContentView: View {
         currentStep = "Обработка через VSR (fallback)"
         currentStepIndex = 1
         let outputURL = createOutputURL(from: input, suffix: "vsr_fallback", width: width, height: height)
-        extractFramesAndProcess(input: input, output: outputURL, algorithm: "realesrgan")
+        extractFramesAndProcess(input: input, output: outputURL, algorithm: "best-ncnn")
     }
     
     private func processRIFERealESRGAN(input: URL, width: Int, height: Int) {
@@ -826,9 +845,12 @@ struct ContentView: View {
                     outPipe.fileHandleForReading.readabilityHandler = nil
                     errPipe.fileHandleForReading.readabilityHandler = nil
                     if process.terminationStatus == 0 {
-                        if algorithm == "realesrgan" {
+                        switch algorithm {
+                        case "realesrgan":
                             self.processFramesWithRealESRGAN(tempDir: tempDir, originalVideo: input, output: output)
-                        } else {
+                        case "best-ncnn":
+                            self.processFramesWithBestNCNNUpscaler(tempDir: tempDir, originalVideo: input, output: output)
+                        default:
                             self.processFramesWithRIFERealESRGAN(tempDir: tempDir, originalVideo: input, output: output)
                         }
                     } else {
@@ -864,9 +886,16 @@ struct ContentView: View {
             var scaleStr = "4"
             let x2bin = modelsPath.appendingPathComponent("realesrgan-x2plus.bin")
             let x2param = modelsPath.appendingPathComponent("realesrgan-x2plus.param")
-            if selectedMode == .fast, FileManager.default.fileExists(atPath: x2bin.path), FileManager.default.fileExists(atPath: x2param.path) {
-                modelName = "realesrgan-x2plus"
-                scaleStr = "2"
+            let x2AnimeBin = modelsPath.appendingPathComponent("realesr-animevideov3-x2.bin")
+            let x2AnimeParam = modelsPath.appendingPathComponent("realesr-animevideov3-x2.param")
+            if selectedMode == .fast {
+                if FileManager.default.fileExists(atPath: x2bin.path), FileManager.default.fileExists(atPath: x2param.path) {
+                    modelName = "realesrgan-x2plus"
+                    scaleStr = "2"
+                } else if FileManager.default.fileExists(atPath: x2AnimeBin.path), FileManager.default.fileExists(atPath: x2AnimeParam.path) {
+                    modelName = "realesr-animevideov3-x2"
+                    scaleStr = "2"
+                }
             }
 
             let process = Process()
@@ -946,6 +975,160 @@ struct ContentView: View {
         } catch {
             finishWithError("Ошибка обработки Real-ESRGAN: \(error.localizedDescription)")
         }
+    }
+
+    private func processFramesWithBestNCNNUpscaler(tempDir: URL, originalVideo: URL, output: URL) {
+        // Предпочитаем RealCUGAN, затем Waifu2x, затем ESRGAN
+        if findBinary("realcugan-ncnn-vulkan") != nil {
+            processFramesWithRealCUGAN(tempDir: tempDir, originalVideo: originalVideo, output: output)
+            return
+        }
+        if findBinary("waifu2x-ncnn-vulkan") != nil {
+            processFramesWithWaifu2x(tempDir: tempDir, originalVideo: originalVideo, output: output)
+            return
+        }
+        // Фолбэк — ESRGAN, как и раньше
+        processFramesWithRealESRGAN(tempDir: tempDir, originalVideo: originalVideo, output: output)
+    }
+
+    private func processFramesWithRealCUGAN(tempDir: URL, originalVideo: URL, output: URL) {
+        currentStep = "Обработка кадров через RealCUGAN"
+        currentStepIndex += 1
+
+        let outputFramesDir = tempDir.appendingPathComponent("upscaled")
+        do { try FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true) } catch {}
+
+        guard let bin = findBinary("realcugan-ncnn-vulkan") else {
+            self.finishWithError("Не найден realcugan-ncnn-vulkan. Поместите бинарник в \(self.projectBin().path)")
+            return
+        }
+        let process = Process()
+        process.launchPath = bin
+        // Настраиваем параметры под режим: x2, шумоподавление 2, формат кадров — как frameExtension
+        process.arguments = [
+            "-i", tempDir.path,
+            "-o", outputFramesDir.path,
+            "-s", "2",
+            "-n", "2",
+            "-f", frameExtension,
+            "-t", "384",
+            "-j", "4:4:4",
+            "-g", "0"
+        ]
+
+        self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
+        self.processedFramesCount = 0
+        self.progressValue = 0
+        self.startTime = self.startTime ?? Date()
+        self.progressPollTimer?.invalidate()
+        self.progressPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            let count = (try? FileManager.default.contentsOfDirectory(at: outputFramesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
+            self.processedFramesCount = count
+            let total = max(self.totalFramesCount, 1)
+            let pct = min(max(Double(count) / Double(total), 0.0), 1.0)
+            self.progressValue = pct
+            self.progress = "🚀 RealCUGAN: " + String(format: "%.0f%% (\(count)/\(total))", pct * 100)
+            self.updateETAFromFrames(processed: count, total: total)
+        }
+
+        let outPipe = Pipe(); process.standardOutput = outPipe
+        outPipe.fileHandleForReading.readabilityHandler = { handle in
+            if let text = String(data: handle.availableData, encoding: .utf8), !text.isEmpty { DispatchQueue.main.async { self.appendStdout(text) } }
+        }
+        let errPipe = Pipe(); process.standardError = errPipe
+        errPipe.fileHandleForReading.readabilityHandler = { handle in
+            if let text = String(data: handle.availableData, encoding: .utf8), !text.isEmpty { DispatchQueue.main.async { self.appendStderr(text) } }
+        }
+
+        process.terminationHandler = { process in
+            DispatchQueue.main.async {
+                self.progressPollTimer?.invalidate(); self.progressPollTimer = nil
+                outPipe.fileHandleForReading.readabilityHandler = nil
+                errPipe.fileHandleForReading.readabilityHandler = nil
+                if process.terminationStatus == 0 {
+                    if self.selectedMode == .quality {
+                        let interpolatedDir = tempDir.appendingPathComponent("interpolated")
+                        self.interpolateWithRIFE(inputFramesDir: outputFramesDir, outputFramesDir: interpolatedDir, tempDir: tempDir, originalVideo: originalVideo, output: output, targetFps: 30)
+                    } else {
+                        self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                    }
+                } else {
+                    self.finishWithError("Ошибка обработки RealCUGAN")
+                }
+            }
+        }
+
+        do { currentProcess = process; try process.run() } catch { finishWithError("Ошибка запуска RealCUGAN: \(error.localizedDescription)") }
+    }
+
+    private func processFramesWithWaifu2x(tempDir: URL, originalVideo: URL, output: URL) {
+        currentStep = "Обработка кадров через Waifu2x"
+        currentStepIndex += 1
+
+        let outputFramesDir = tempDir.appendingPathComponent("upscaled")
+        do { try FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true) } catch {}
+
+        guard let bin = findBinary("waifu2x-ncnn-vulkan") else {
+            self.finishWithError("Не найден waifu2x-ncnn-vulkan. Поместите бинарник в \(self.projectBin().path)")
+            return
+        }
+        let process = Process()
+        process.launchPath = bin
+        // Шумоподавление 2, масштаб 2, формат кадров — как frameExtension
+        process.arguments = [
+            "-i", tempDir.path,
+            "-o", outputFramesDir.path,
+            "-s", "2",
+            "-n", "2",
+            "-f", frameExtension,
+            "-t", "384",
+            "-j", "4:4:4",
+            "-g", "0"
+        ]
+
+        self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
+        self.processedFramesCount = 0
+        self.progressValue = 0
+        self.startTime = self.startTime ?? Date()
+        self.progressPollTimer?.invalidate()
+        self.progressPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            let count = (try? FileManager.default.contentsOfDirectory(at: outputFramesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
+            self.processedFramesCount = count
+            let total = max(self.totalFramesCount, 1)
+            let pct = min(max(Double(count) / Double(total), 0.0), 1.0)
+            self.progressValue = pct
+            self.progress = "⚡️ Waifu2x: " + String(format: "%.0f%% (\(count)/\(total))", pct * 100)
+            self.updateETAFromFrames(processed: count, total: total)
+        }
+
+        let outPipe = Pipe(); process.standardOutput = outPipe
+        outPipe.fileHandleForReading.readabilityHandler = { handle in
+            if let text = String(data: handle.availableData, encoding: .utf8), !text.isEmpty { DispatchQueue.main.async { self.appendStdout(text) } }
+        }
+        let errPipe = Pipe(); process.standardError = errPipe
+        errPipe.fileHandleForReading.readabilityHandler = { handle in
+            if let text = String(data: handle.availableData, encoding: .utf8), !text.isEmpty { DispatchQueue.main.async { self.appendStderr(text) } }
+        }
+
+        process.terminationHandler = { process in
+            DispatchQueue.main.async {
+                self.progressPollTimer?.invalidate(); self.progressPollTimer = nil
+                outPipe.fileHandleForReading.readabilityHandler = nil
+                errPipe.fileHandleForReading.readabilityHandler = nil
+                if process.terminationStatus == 0 {
+                    if self.selectedMode == .quality {
+                        let interpolatedDir = tempDir.appendingPathComponent("interpolated")
+                        self.interpolateWithRIFE(inputFramesDir: outputFramesDir, outputFramesDir: interpolatedDir, tempDir: tempDir, originalVideo: originalVideo, output: output, targetFps: 30)
+                    } else {
+                        self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                    }
+                } else {
+                    self.finishWithError("Ошибка обработки Waifu2x")
+                }
+            }
+        }
+
+        do { currentProcess = process; try process.run() } catch { finishWithError("Ошибка запуска Waifu2x: \(error.localizedDescription)") }
     }
     
     private func processFramesWithRIFERealESRGAN(tempDir: URL, originalVideo: URL, output: URL) {
