@@ -358,12 +358,10 @@ struct ContentView: View {
             let extractProcess = Process()
             extractProcess.launchPath = "/opt/homebrew/bin/ffmpeg"
             var args: [String] = ["-hide_banner", "-v", "error", "-progress", "pipe:1", "-i", input.path]
-            if selectedMode == .fast {
+            if frameExtension == "jpg" {
                 args += ["-q:v", "2", "\(tempDir.path)/%08d.jpg"]
-                frameExtension = "jpg"
             } else {
                 args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
-                frameExtension = "png"
             }
             extractProcess.arguments = args
             extractionTotalDuration = getVideoDuration(url: input)
@@ -493,10 +491,10 @@ struct ContentView: View {
                 "-progress", "pipe:1",
                 "-i", input.path
             ]
-            if frameExtension == "png" {
-                args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
-            } else {
+            if frameExtension == "jpg" {
                 args += ["-q:v", "2", "\(tempDir.path)/%08d.jpg"]
+            } else {
+                args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
             }
             extractProcess.arguments = args
             // Подсчет ETA: используем длительность оригинального видео и out_time_ms прогресса ffmpeg
