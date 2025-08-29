@@ -1,0 +1,18 @@
+# Build artifacts
+.build/
+dist/
+
+# App bundles
+*.app/
+FXUpscaleApp.app/
+
+# Archives
+*.zip
+
+# OS files
+.DS_Store
+
+# SwiftPM intermediates
+.swiftpm/
+Package.resolved
+
