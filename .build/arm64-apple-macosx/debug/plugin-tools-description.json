@@ -44,6 +44,7 @@
       "otherArguments" : [
         "-target",
         "arm64-apple-macosx13.0",
+        "-v",
         "-enable-batch-mode",
         "-index-store-path",
         "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/index/store",
@@ -128,6 +129,7 @@
       "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/Modules",
       "-target",
       "arm64-apple-macosx13.0",
+      "-v",
       "-enable-batch-mode",
       "-index-store-path",
       "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/index/store",
