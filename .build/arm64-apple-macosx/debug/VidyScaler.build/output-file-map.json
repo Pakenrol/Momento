@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/VidyScaler.build/master.swiftdeps"
+  },
+  "/Users/pakenrol/Documents/Coding/VidyScaler/main.swift": {
+    "dependencies": "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/VidyScaler.build/main.d",
+    "object": "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/VidyScaler.build/main.swift.o",
+    "swiftmodule": "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/VidyScaler.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/pakenrol/Documents/Coding/VidyScaler/.build/arm64-apple-macosx/debug/VidyScaler.build/main.swiftdeps"
+  }
+}
