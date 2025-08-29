@@ -660,7 +660,7 @@ struct ContentView: View {
         }
         let process = Process()
         process.launchPath = bin
-        // Настраиваем параметры под режим: x2, шумоподавление 2, формат кадров — как frameExtension
+        // Качественный режим: хорошее шумоподавление для лучшего качества, масштаб 2
         process.arguments = [
             "-i", tempDir.path,
             "-o", outputFramesDir.path,
@@ -724,12 +724,12 @@ struct ContentView: View {
         }
         let process = Process()
         process.launchPath = bin
-        // Шумоподавление 2, масштаб 2, формат кадров — как frameExtension
+        // Быстрый режим: без шумоподавления для скорости, масштаб 2, формат кадров — как frameExtension
         process.arguments = [
             "-i", tempDir.path,
             "-o", outputFramesDir.path,
             "-s", "2",
-            "-n", "2",
+            "-n", "0",
             "-f", frameExtension,
             "-t", "512",
             "-j", "2:4:2",
