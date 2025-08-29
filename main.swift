@@ -40,33 +40,7 @@ struct VidyScalerApp: App {
     }
 }
 
-enum ProcessingAlgorithm: Int, CaseIterable {
-    case fxUpscale = 0
-    case realESRGAN = 1
-    case rifeRealESRGAN = 2
-    
-    var name: String {
-        switch self {
-        case .fxUpscale:
-            return "FX-Upscale (быстро)"
-        case .realESRGAN:
-            return "Real-ESRGAN (реставрация)"
-        case .rifeRealESRGAN:
-            return "RIFE + Real-ESRGAN (максимум)"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .fxUpscale:
-            return "Быстрый Metal-апскейлинг для современных видео"
-        case .realESRGAN:
-            return "AI-реставрация старых видео с зернистостью и артефактами"
-        case .rifeRealESRGAN:
-            return "Максимальное качество: апскейлинг + интерполяция до 60fps"
-        }
-    }
-}
+// Убрали выбор алгоритма — всё прячется под режимами Fast/Quality
 
 enum ProcessingMode: Int, CaseIterable {
     case fast = 0
@@ -118,7 +92,7 @@ struct ContentView: View {
     @State private var isProcessing = false
     @State private var progress: String = ""
     @State private var timeElapsed: String = ""
-    @State private var selectedAlgorithm = ProcessingAlgorithm.realESRGAN
+    // Только два режима
     @State private var selectedMode = ProcessingMode.fast
     @State private var selectedPreset = VideoPreset.restoration360to1440
     @State private var dragOver = false
@@ -229,30 +203,7 @@ struct ContentView: View {
             }
             .padding(.horizontal)
             
-            // Выбор алгоритма
-            VStack(alignment: .leading, spacing: 12) {
-                Text("🤖 Алгоритм обработки:")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Picker("Алгоритм", selection: $selectedAlgorithm) {
-                    ForEach(ProcessingAlgorithm.allCases, id: \.rawValue) { algorithm in
-                        VStack(alignment: .leading) {
-                            Text(algorithm.name)
-                                .font(.body)
-                                .fontWeight(.medium)
-                        }
-                        .tag(algorithm)
-                    }
-                }
-                .pickerStyle(.segmented)
-                
-                Text(selectedAlgorithm.description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 4)
-            }
-            .padding(.horizontal)
+            // Убран выбор алгоритма — оставили только Режим
 
             // Режим обработки
             VStack(alignment: .leading, spacing: 8) {
@@ -463,14 +414,12 @@ struct ContentView: View {
         // Настройка формата кадров под режим
         frameExtension = (selectedMode == .fast) ? "jpg" : "png"
 
-        // Определяем количество шагов в зависимости от алгоритма
-        switch selectedAlgorithm {
-        case .fxUpscale:
-            totalSteps = 1
-        case .realESRGAN:
-            totalSteps = 3 // Извлечение кадров + обработка + сборка
-        case .rifeRealESRGAN:
-            totalSteps = 4 // Извлечение + апскейлинг + интерполяция + сборка
+        // Определяем количество шагов по режиму
+        switch selectedMode {
+        case .fast:
+            totalSteps = 3 // Извлечение + апскейл (VSR/ESRGAN) + сборка
+        case .quality:
+            totalSteps = 4 // Извлечение + VSR/ESRGAN + RIFE + сборка
         }
         
         // Запускаем таймер для обновления времени
@@ -482,14 +431,16 @@ struct ContentView: View {
         let originalSize = getVideoSize(url: inputURL)
         let (targetWidth, targetHeight) = selectedPreset.getTargetSize(originalWidth: originalSize.width, originalHeight: originalSize.height)
         
-        // Запускаем соответствующий процесс
-        switch selectedAlgorithm {
-        case .fxUpscale:
-            processFXUpscale(input: inputURL, width: targetWidth, height: targetHeight)
-        case .realESRGAN:
-            processRealESRGAN(input: inputURL, width: targetWidth, height: targetHeight)
-        case .rifeRealESRGAN:
-            processRIFERealESRGAN(input: inputURL, width: targetWidth, height: targetHeight)
+        // Запускаем пайплайн VSR (Core ML при наличии моделей, иначе fallback)
+        runVSRPipeline(input: inputURL, width: targetWidth, height: targetHeight)
+    }
+
+    private func runVSRPipeline(input: URL, width: Int, height: Int) {
+        if areCoreMLModelsAvailable() {
+            processVSRCoreML(input: input, width: width, height: height)
+        } else {
+            // Fallback на ESRGAN ncnn (c учётом режима fast/quality)
+            processRealESRGAN(input: input, width: width, height: height)
         }
     }
     
@@ -562,20 +513,18 @@ struct ContentView: View {
         }
     }
     
-    private func processRealESRGAN(input: URL, width: Int, height: Int) {
-        currentStep = "Обработка через VSR"
+    private func processVSRCoreML(input: URL, width: Int, height: Int) {
+        currentStep = "Обработка через VSR (Core ML)"
         currentStepIndex = 1
-
         let outputURL = createOutputURL(from: input, suffix: "vsr", width: width, height: height)
+        extractFramesAndProcessCoreML(input: input, output: outputURL)
+    }
 
-        // Если доступны Core ML модели — используем локальный VSR пайплайн.
-        // Иначе — используем текущий ESRGAN на кадрах как фолбэк.
-        if areCoreMLModelsAvailable() {
-            extractFramesAndProcessCoreML(input: input, output: outputURL)
-        } else {
-            // Фолбэк на существующий ncnn ESRGAN пайплайн
-            extractFramesAndProcess(input: input, output: outputURL, algorithm: "realesrgan")
-        }
+    private func processRealESRGAN(input: URL, width: Int, height: Int) {
+        currentStep = "Обработка через VSR (fallback)"
+        currentStepIndex = 1
+        let outputURL = createOutputURL(from: input, suffix: "vsr_fallback", width: width, height: height)
+        extractFramesAndProcess(input: input, output: outputURL, algorithm: "realesrgan")
     }
     
     private func processRIFERealESRGAN(input: URL, width: Int, height: Int) {
@@ -614,7 +563,7 @@ struct ContentView: View {
                 args += ["-q:v", "2", "\(tempDir.path)/%08d.jpg"]
                 frameExtension = "jpg"
             } else {
-                args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
+                args += ["-vf", "fps=15", "-compression_level", "0", "\(tempDir.path)/%08d.png"]
                 frameExtension = "png"
             }
             extractProcess.arguments = args
@@ -721,8 +670,72 @@ struct ContentView: View {
                 }
             }
             DispatchQueue.main.async {
-                self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                if self.selectedMode == .quality {
+                    // Интерполяция до 30fps (если извлекали 15fps)
+                    let interpolatedDir = tempDir.appendingPathComponent("interpolated")
+                    self.interpolateWithRIFE(inputFramesDir: outputFramesDir, outputFramesDir: interpolatedDir, tempDir: tempDir, originalVideo: originalVideo, output: output, targetFps: 30)
+                } else {
+                    self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                }
             }
+        }
+    }
+
+    private func interpolateWithRIFE(inputFramesDir: URL, outputFramesDir: URL, tempDir: URL, originalVideo: URL, output: URL, targetFps: Int) {
+        currentStep = "Интерполяция кадров (RIFE)"
+        currentStepIndex += 1
+
+        try? FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true)
+
+        let projectDir = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/VidyScaler")
+        let rifeBin = projectDir.appendingPathComponent("rife/rife-ncnn-vulkan")
+        guard FileManager.default.isExecutableFile(atPath: rifeBin.path) else {
+            // Если нет RIFE — сразу собираем
+            self.reassembleVideo(framesDir: inputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+            return
+        }
+
+        let process = Process()
+        process.launchPath = rifeBin.path
+        // Удвоение fps: -f 2. Вход/выход — директории кадров
+        process.arguments = [
+            "-i", inputFramesDir.path,
+            "-o", outputFramesDir.path,
+            "-f", "2"
+        ]
+
+        let outPipe = Pipe(); process.standardOutput = outPipe
+        outPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async { self.appendStdout(text) }
+        }
+        let errPipe = Pipe(); process.standardError = errPipe
+        errPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async { self.appendStderr(text) }
+        }
+
+        process.terminationHandler = { process in
+            DispatchQueue.main.async {
+                outPipe.fileHandleForReading.readabilityHandler = nil
+                errPipe.fileHandleForReading.readabilityHandler = nil
+                if process.terminationStatus == 0 {
+                    self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                } else {
+                    // Если RIFE провалился — собираем без интерполяции
+                    self.reassembleVideo(framesDir: inputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                }
+            }
+        }
+
+        do {
+            currentProcess = process
+            try process.run()
+        } catch {
+            // Если не стартанул — собираем без интерполяции
+            self.reassembleVideo(framesDir: inputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
         }
     }
 
@@ -761,6 +774,9 @@ struct ContentView: View {
                 "-progress", "pipe:1",
                 "-i", input.path
             ]
+            if selectedMode == .quality {
+                args += ["-vf", "fps=15"]
+            }
             if frameExtension == "png" {
                 args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
             } else {
@@ -912,7 +928,12 @@ struct ContentView: View {
                     outPipe.fileHandleForReading.readabilityHandler = nil
                     errPipe.fileHandleForReading.readabilityHandler = nil
                     if process.terminationStatus == 0 {
-                        self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                        if self.selectedMode == .quality {
+                            let interpolatedDir = tempDir.appendingPathComponent("interpolated")
+                            self.interpolateWithRIFE(inputFramesDir: outputFramesDir, outputFramesDir: interpolatedDir, tempDir: tempDir, originalVideo: originalVideo, output: output, targetFps: 30)
+                        } else {
+                            self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+                        }
                     } else {
                         self.finishWithError("Ошибка обработки Real-ESRGAN")
                     }
