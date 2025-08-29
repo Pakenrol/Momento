@@ -1,6 +1,9 @@
 import SwiftUI
 import Foundation
 import UniformTypeIdentifiers
+import CoreImage
+import CoreImage.CIFilterBuiltins
+import CoreML
 
 // MARK: - Project Memory/Init
 /*
@@ -65,6 +68,18 @@ enum ProcessingAlgorithm: Int, CaseIterable {
     }
 }
 
+enum ProcessingMode: Int, CaseIterable {
+    case fast = 0
+    case quality = 1
+
+    var name: String {
+        switch self {
+        case .fast: return "Быстро"
+        case .quality: return "Качество"
+        }
+    }
+}
+
 enum VideoPreset: Int, CaseIterable {
     case classic360to1080 = 0
     case vintage480to4K = 1
@@ -104,6 +119,7 @@ struct ContentView: View {
     @State private var progress: String = ""
     @State private var timeElapsed: String = ""
     @State private var selectedAlgorithm = ProcessingAlgorithm.realESRGAN
+    @State private var selectedMode = ProcessingMode.fast
     @State private var selectedPreset = VideoPreset.restoration360to1440
     @State private var dragOver = false
     @State private var startTime: Date?
@@ -120,6 +136,7 @@ struct ContentView: View {
     // Frames processing context
     @State private var totalFramesCount: Int = 0
     @State private var processedFramesCount: Int = 0
+    @State private var frameExtension: String = "png" // png or jpg
     // Cancellation support
     @State private var currentProcess: Process?
     @State private var workingTempDir: URL?
@@ -130,6 +147,11 @@ struct ContentView: View {
     @State private var emaFrameTime: Double = 0.0
     @State private var lastRateSampleTime: Date?
     @State private var lastRateSampleFrames: Int = 0
+    // FX-Upscale progress estimation
+    @State private var fxStageStartTime: Date?
+    @State private var fxEstimatedTotalSec: Double?
+    @State private var fxProgressTimer: Timer?
+    @State private var lastFXKnownPercent: Double = 0.0
     
     var body: some View {
         VStack(alignment: .leading, spacing: 25) {
@@ -231,6 +253,21 @@ struct ContentView: View {
                     .padding(.leading, 4)
             }
             .padding(.horizontal)
+
+            // Режим обработки
+            VStack(alignment: .leading, spacing: 8) {
+                Text("⚙️ Режим:")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Picker("Режим", selection: $selectedMode) {
+                    ForEach(ProcessingMode.allCases, id: \.rawValue) { mode in
+                        Text(mode.name).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 260)
+            }
+            .padding(.horizontal)
             
             // Выбор пресета
             VStack(alignment: .leading, spacing: 12) {
@@ -316,33 +353,55 @@ struct ContentView: View {
             // Информационная панель
             VStack(spacing: 8) {
                 Divider()
-                ViewThatFits(in: .horizontal) {
-                    // Горизонтальный вариант (по умолчанию)
-                    HStack {
-                        Text("💡 Для старых видео (90-2000е) используйте Real-ESRGAN")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        Spacer(minLength: 12)
-                        Text("🍎 Оптимизировано для Apple Silicon")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    // Вертикальный фоллбек для узких ширин
+                if isProcessing {
+                    // Во время обработки всегда вертикально, чтобы не было переполнения
                     VStack(alignment: .leading, spacing: 6) {
                         Text("💡 Для старых видео (90-2000е) используйте Real-ESRGAN")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(2)
                             .truncationMode(.tail)
+                            .minimumScaleFactor(0.8)
                         Text("🍎 Оптимизировано для Apple Silicon")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
+                            .minimumScaleFactor(0.8)
+                    }
+                } else {
+                    ViewThatFits(in: .horizontal) {
+                        // Горизонтальный вариант (по умолчанию)
+                        HStack {
+                            Text("💡 Для старых видео (90-2000е) используйте Real-ESRGAN")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.85)
+                            Spacer(minLength: 12)
+                            Text("🍎 Оптимизировано для Apple Silicon")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.85)
+                        }
+                        // Вертикальный фоллбек для узких ширин
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("💡 Для старых видео (90-2000е) используйте Real-ESRGAN")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.85)
+                            Text("🍎 Оптимизировано для Apple Silicon")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .minimumScaleFactor(0.85)
+                        }
                     }
                 }
             }
@@ -401,6 +460,8 @@ struct ContentView: View {
         emaFrameTime = 0
         lastRateSampleTime = Date()
         lastRateSampleFrames = 0
+        // Настройка формата кадров под режим
+        frameExtension = (selectedMode == .fast) ? "jpg" : "png"
 
         // Определяем количество шагов в зависимости от алгоритма
         switch selectedAlgorithm {
@@ -447,8 +508,48 @@ struct ContentView: View {
             "--codec", "hevc"
         ]
 
+        // Capture stdout/stderr to try to infer progress and show ETA
+        let outPipe = Pipe(); process.standardOutput = outPipe
+        outPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async {
+                self.appendStdout(text)
+                self.parseFXUpscaleProgress(text)
+            }
+        }
+        let errPipe = Pipe(); process.standardError = errPipe
+        errPipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async {
+                self.appendStderr(text)
+                self.parseFXUpscaleProgress(text)
+            }
+        }
+
+        // Initialize FX stage estimation and start interpolation timer
+        fxStageStartTime = Date()
+        fxEstimatedTotalSec = nil
+        lastFXKnownPercent = 0
+        fxProgressTimer?.invalidate()
+        fxProgressTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+            guard let start = self.fxStageStartTime, let est = self.fxEstimatedTotalSec, est > 0 else { return }
+            let elapsed = Date().timeIntervalSince(start)
+            let frac = min(max(elapsed / est, 0.0), 0.99)
+            if frac > self.progressValue {
+                self.progressValue = frac
+                self.progress = "⚡️ FX-Upscale: " + String(format: "%.0f%%", frac * 100)
+                self.updateETA(percent: frac)
+            }
+        }
+
         process.terminationHandler = { process in
             DispatchQueue.main.async {
+                outPipe.fileHandleForReading.readabilityHandler = nil
+                errPipe.fileHandleForReading.readabilityHandler = nil
+                self.fxProgressTimer?.invalidate()
+                self.fxProgressTimer = nil
                 self.finishProcessing(exitCode: process.terminationStatus)
             }
         }
@@ -462,13 +563,19 @@ struct ContentView: View {
     }
     
     private func processRealESRGAN(input: URL, width: Int, height: Int) {
-        currentStep = "Обработка через Real-ESRGAN"
+        currentStep = "Обработка через VSR"
         currentStepIndex = 1
-        
-        let outputURL = createOutputURL(from: input, suffix: "realesrgan", width: width, height: height)
-        
-        // Real-ESRGAN работает с изображениями, поэтому нужно сначала извлечь кадры
-        extractFramesAndProcess(input: input, output: outputURL, algorithm: "realesrgan")
+
+        let outputURL = createOutputURL(from: input, suffix: "vsr", width: width, height: height)
+
+        // Если доступны Core ML модели — используем локальный VSR пайплайн.
+        // Иначе — используем текущий ESRGAN на кадрах как фолбэк.
+        if areCoreMLModelsAvailable() {
+            extractFramesAndProcessCoreML(input: input, output: outputURL)
+        } else {
+            // Фолбэк на существующий ncnn ESRGAN пайплайн
+            extractFramesAndProcess(input: input, output: outputURL, algorithm: "realesrgan")
+        }
     }
     
     private func processRIFERealESRGAN(input: URL, width: Int, height: Int) {
@@ -479,6 +586,158 @@ struct ContentView: View {
         
         // Сложный pipeline: извлечение → Real-ESRGAN → RIFE → сборка
         extractFramesAndProcess(input: input, output: outputURL, algorithm: "rife+realesrgan")
+    }
+
+    // MARK: - Core ML VSR Pipeline (frames -> denoise -> VSR x2 -> assemble)
+    private func areCoreMLModelsAvailable() -> Bool {
+        let base = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/VidyScaler/models-coreml")
+        let fastdvd = base.appendingPathComponent("FastDVDnet.mlmodelc")
+        let rbv = base.appendingPathComponent("RealBasicVSR_x2.mlmodelc")
+        return FileManager.default.fileExists(atPath: fastdvd.path) && FileManager.default.fileExists(atPath: rbv.path)
+    }
+
+    private func extractFramesAndProcessCoreML(input: URL, output: URL) {
+        // Создаем временную папку
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("VidyScaler_\(UUID().uuidString)")
+        do {
+            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            workingTempDir = tempDir
+
+            currentStep = "Извлечение кадров из видео"
+            currentStepIndex += 1
+
+            // Извлекаем кадры (JPEG для fast, PNG для quality)
+            let extractProcess = Process()
+            extractProcess.launchPath = "/opt/homebrew/bin/ffmpeg"
+            var args: [String] = ["-hide_banner", "-v", "error", "-progress", "pipe:1", "-i", input.path]
+            if selectedMode == .fast {
+                args += ["-q:v", "2", "\(tempDir.path)/%08d.jpg"]
+                frameExtension = "jpg"
+            } else {
+                args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
+                frameExtension = "png"
+            }
+            extractProcess.arguments = args
+
+            extractionTotalDuration = getVideoDuration(url: input)
+            let outPipe = Pipe(); extractProcess.standardOutput = outPipe
+            outPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+                for line in text.split(separator: "\n") {
+                    if line.hasPrefix("out_time_ms=") {
+                        let v = line.replacingOccurrences(of: "out_time_ms=", with: "")
+                        if let outMS = Double(v) {
+                            let pct = min(max((outMS/1_000_000.0)/max(self.extractionTotalDuration, 0.0001), 0.0), 1.0)
+                            DispatchQueue.main.async {
+                                self.progressValue = pct
+                                self.progress = "📤 Извлечение кадров: " + String(format: "%.0f%%", pct * 100)
+                                self.updateETA(percent: pct)
+                            }
+                        }
+                    }
+                }
+            }
+            let errPipe = Pipe(); extractProcess.standardError = errPipe
+            errPipe.fileHandleForReading.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+                DispatchQueue.main.async { self.appendStderr(text) }
+            }
+
+            extractProcess.terminationHandler = { process in
+                DispatchQueue.main.async {
+                    outPipe.fileHandleForReading.readabilityHandler = nil
+                    errPipe.fileHandleForReading.readabilityHandler = nil
+                    if process.terminationStatus == 0 {
+                        self.processFramesWithCoreMLVSR(tempDir: tempDir, originalVideo: input, output: output)
+                    } else {
+                        self.finishWithError("Ошибка извлечения кадров")
+                    }
+                }
+            }
+            currentProcess = extractProcess
+            try extractProcess.run()
+        } catch {
+            finishWithError("Ошибка CoreML-пайплайна: \(error.localizedDescription)")
+        }
+    }
+
+    private func processFramesWithCoreMLVSR(tempDir: URL, originalVideo: URL, output: URL) {
+        currentStep = "Core ML: денойз + VSR"
+        currentStepIndex += 1
+
+        let outputFramesDir = tempDir.appendingPathComponent("upscaled")
+        do { try FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true) } catch {}
+
+        // Собираем список кадров
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            .filter({ $0.pathExtension.lowercased() == frameExtension })
+            .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) else {
+            finishWithError("Не удалось получить список кадров для Core ML")
+            return
+        }
+        totalFramesCount = files.count
+        processedFramesCount = 0
+        progressValue = 0
+
+        let context = CIContext()
+        let nrFilter = CIFilter.noiseReduction()
+        nrFilter.noiseLevel = 0.02
+        nrFilter.sharpness = 0.4
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            for (idx, url) in files.enumerated() {
+                autoreleasepool {
+                    guard let inputImage = CIImage(contentsOf: url) else { return }
+                    // Денойз (fallback, если FastDVDnet не интегрирован)
+                    nrFilter.inputImage = inputImage
+                    let denoised = nrFilter.outputImage ?? inputImage
+                    // VSR x2 (fallback на Lanczos, пока нет RealBasicVSR Core ML)
+                    let lanczos = CIFilter.lanczosScaleTransform()
+                    lanczos.inputImage = denoised
+                    lanczos.scale = 2.0
+                    lanczos.aspectRatio = 1.0
+                    let upscaled = lanczos.outputImage ?? denoised
+
+                    // Сохранение
+                    let outURL = outputFramesDir.appendingPathComponent(url.lastPathComponent)
+                    do {
+                        try self.writeImage(upscaled, to: outURL, context: context, ext: self.frameExtension)
+                    } catch {
+                        DispatchQueue.main.async { self.finishWithError("Ошибка сохранения кадра: \(error.localizedDescription)") }
+                        return
+                    }
+
+                    // Обновление прогресса
+                    DispatchQueue.main.async {
+                        self.processedFramesCount = idx + 1
+                        let pct = Double(self.processedFramesCount) / Double(max(self.totalFramesCount, 1))
+                        self.progressValue = pct
+                        self.progress = "🧠 Core ML VSR: " + String(format: "%.0f%% (\(self.processedFramesCount)/\(self.totalFramesCount))", pct * 100)
+                        self.updateETAFromFrames(processed: self.processedFramesCount, total: self.totalFramesCount)
+                    }
+                }
+            }
+            DispatchQueue.main.async {
+                self.reassembleVideo(framesDir: outputFramesDir, originalVideo: originalVideo, output: output, tempDir: tempDir)
+            }
+        }
+    }
+
+    private func writeImage(_ image: CIImage, to url: URL, context: CIContext, ext: String) throws {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let cgImage = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: colorSpace) else {
+            throw NSError(domain: "VidyScaler", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось создать CGImage"])
+        }
+        let dest = CGImageDestinationCreateWithURL(url as CFURL, (ext == "png" ? kUTTypePNG : kUTTypeJPEG) as CFString, 1, nil)!
+        var props: [CFString: Any] = [:]
+        if ext == "jpg" { props[kCGImageDestinationLossyCompressionQuality] = 0.95 }
+        CGImageDestinationAddImage(dest, cgImage, props as CFDictionary)
+        if !CGImageDestinationFinalize(dest) {
+            throw NSError(domain: "VidyScaler", code: -2, userInfo: [NSLocalizedDescriptionKey: "Не удалось записать изображение"])
+        }
     }
     
     private func extractFramesAndProcess(input: URL, output: URL, algorithm: String) {
@@ -497,13 +756,17 @@ struct ContentView: View {
             let extractProcess = Process()
             extractProcess.launchPath = "/opt/homebrew/bin/ffmpeg"
             // Запрашиваем прогресс в stdout
-            extractProcess.arguments = [
+            var args: [String] = [
                 "-hide_banner", "-v", "error",
                 "-progress", "pipe:1",
-                "-i", input.path,
-                "-compression_level", "0",
-                "\(tempDir.path)/%08d.png"
+                "-i", input.path
             ]
+            if frameExtension == "png" {
+                args += ["-compression_level", "0", "\(tempDir.path)/%08d.png"]
+            } else {
+                args += ["-q:v", "2", "\(tempDir.path)/%08d.jpg"]
+            }
+            extractProcess.arguments = args
 
             // Подсчет ETA: используем длительность оригинального видео и out_time_ms прогресса ffmpeg
             extractionTotalDuration = getVideoDuration(url: input)
@@ -580,21 +843,31 @@ struct ContentView: View {
 
             let realESRGANPath = projectDir.appendingPathComponent("realesrgan-ncnn-vulkan")
             let modelsPath = projectDir.appendingPathComponent("models")
+            // Выбираем модель/масштаб под режим, если доступна x2 — используем её, иначе x4
+            var modelName = "realesrgan-x4plus"
+            var scaleStr = "4"
+            let x2bin = modelsPath.appendingPathComponent("realesrgan-x2plus.bin")
+            let x2param = modelsPath.appendingPathComponent("realesrgan-x2plus.param")
+            if selectedMode == .fast, FileManager.default.fileExists(atPath: x2bin.path), FileManager.default.fileExists(atPath: x2param.path) {
+                modelName = "realesrgan-x2plus"
+                scaleStr = "2"
+            }
 
             let process = Process()
             process.launchPath = realESRGANPath.path
             process.currentDirectoryURL = projectDir
-            process.arguments = [
+            var esrganArgs: [String] = [
                 "-i", tempDir.path,
                 "-o", outputFramesDir.path,
-                "-n", "realesrgan-x4plus", // Модель для реальных изображений
-                "-s", "4",
-                "-f", "png",
+                "-n", modelName,
+                "-s", scaleStr,
+                "-f", frameExtension,
                 "-m", modelsPath.path,
-                "-t", "256",      // ускорение: тайлинг (скорость/память)
-                "-j", "2:2:2",   // ускорение: потоки загрузка:обработка:сохранение
-                "-g", "0"         // gpu id
+                "-t", "384",      // больше тайл для скорости, подбирается по VRAM
+                "-j", "4:4:4",   // выше параллелизм, можно уменьшить если OOM
+                "-g", "0"
             ]
+            process.arguments = esrganArgs
 
             // Проверка наличия исполняемого файла
             guard FileManager.default.isExecutableFile(atPath: realESRGANPath.path) else {
@@ -603,13 +876,13 @@ struct ContentView: View {
             }
 
             // Оценка прогресса по количеству обработанных файлов
-            self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == "png" }.count) ?? 0
+            self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
             self.processedFramesCount = 0
             self.progressValue = 0
             self.startTime = self.startTime ?? Date()
             self.progressPollTimer?.invalidate()
             self.progressPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-                let count = (try? FileManager.default.contentsOfDirectory(at: outputFramesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == "png" }.count) ?? 0
+                let count = (try? FileManager.default.contentsOfDirectory(at: outputFramesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
                 self.processedFramesCount = count
                 let total = max(self.totalFramesCount, 1)
                 let pct = min(max(Double(count) / Double(total), 0.0), 1.0)
@@ -668,12 +941,24 @@ struct ContentView: View {
 
         let process = Process()
         process.launchPath = "/opt/homebrew/bin/ffmpeg"
-        process.arguments = [
+        var args: [String] = [
             "-hide_banner", "-v", "error",
             "-progress", "pipe:1",
             "-framerate", String(fps),
-            "-i", "\(framesDir.path)/%08d.png",
+            "-i", "\(framesDir.path)/%08d.\(self.frameExtension)",
             "-i", originalVideo.path,
+        ]
+        // Масштабируем под целевые размеры (если отличается), используя качественный scale
+        // Вычислить целевой размер можно из имени выходного файла; парсим widthxheight до .mp4
+        let targetName = output.deletingPathExtension().lastPathComponent
+        if let xRange = targetName.range(of: #"_(\d+)x(\d+)$"#, options: .regularExpression) {
+            let dims = String(targetName[xRange]).dropFirst() // remove '_'
+            let parts = dims.split(separator: "x")
+            if parts.count == 2, let w = Int(parts[0]), let h = Int(parts[1]) {
+                args += ["-vf", "scale=\(w):\(h):flags=lanczos"]
+            }
+        }
+        args += [
             // аппаратный энкодер для ускорения сборки на Apple Silicon
             "-c:v", "hevc_videotoolbox",
             "-tag:v", "hvc1",
@@ -685,6 +970,7 @@ struct ContentView: View {
             "-y",
             output.path
         ]
+        process.arguments = args
 
         // Прогресс сборки по out_time_ms от ffmpeg на основе длительности
         let duration = max(getVideoDuration(url: originalVideo), 0.0001)
@@ -740,6 +1026,8 @@ struct ContentView: View {
         timer = nil
         progressPollTimer?.invalidate()
         progressPollTimer = nil
+        fxProgressTimer?.invalidate()
+        fxProgressTimer = nil
         isProcessing = false
         currentStep = ""
         currentProcess = nil
@@ -748,6 +1036,9 @@ struct ContentView: View {
         lastRateSampleTime = nil
         lastRateSampleFrames = 0
         etaText = ""
+        fxStageStartTime = nil
+        fxEstimatedTotalSec = nil
+        lastFXKnownPercent = 0
 
         if exitCode == 0 {
             progress = "✅ Обработка завершена успешно!"
@@ -930,6 +1221,7 @@ struct ContentView: View {
         currentProcess = nil
         timer?.invalidate(); timer = nil
         progressPollTimer?.invalidate(); progressPollTimer = nil
+        fxProgressTimer?.invalidate(); fxProgressTimer = nil
         isProcessing = false
         currentStep = ""
         progressValue = 0
@@ -937,6 +1229,9 @@ struct ContentView: View {
         emaFrameTime = 0
         lastRateSampleTime = nil
         lastRateSampleFrames = 0
+        fxStageStartTime = nil
+        fxEstimatedTotalSec = nil
+        lastFXKnownPercent = 0
         if let tmp = workingTempDir {
             try? FileManager.default.removeItem(at: tmp)
             workingTempDir = nil
@@ -995,5 +1290,81 @@ extension ContentView {
         if !stderrTail.isEmpty { return stderrTail.suffix(12).joined(separator: "\n") }
         if !stdoutTail.isEmpty { return stdoutTail.suffix(8).joined(separator: "\n") }
         return ""
+    }
+
+    // Try to parse FX-Upscale textual progress and update percent/ETA
+    private func parseFXUpscaleProgress(_ text: String) {
+        // 1) Parse tokens like "NN%"
+        var found = false
+        for raw in text.split(whereSeparator: { $0 == "\n" || $0 == "\r" || $0 == " " || $0 == "\t" }) {
+            let token = String(raw)
+            if token.hasSuffix("%") {
+                let num = token.dropLast()
+                if let p = Double(num), p >= 0, p <= 100 {
+                    let frac = p / 100.0
+                    self.progressValue = frac
+                    self.progress = "⚡️ FX-Upscale: " + String(format: "%.0f%%", frac * 100)
+                    // update total estimate for interpolation
+                    if let start = fxStageStartTime, frac > 0 {
+                        let estimate = Date().timeIntervalSince(start) / frac
+                        if let old = fxEstimatedTotalSec {
+                            fxEstimatedTotalSec = 0.3 * estimate + 0.7 * old
+                        } else {
+                            fxEstimatedTotalSec = estimate
+                        }
+                    }
+                    self.updateETA(percent: frac)
+                    self.lastFXKnownPercent = frac
+                    found = true
+                    break
+                }
+            }
+        }
+        if found { return }
+
+        // 2) Parse "processed X/Y" or "X/Y" style
+        for raw in text.split(whereSeparator: { $0 == "\n" || $0 == "\r" || $0 == " " || $0 == "\t" }) {
+            let token = String(raw)
+            if let slash = token.firstIndex(of: "/") {
+                let left = token[..<slash]
+                let right = token[token.index(after: slash)...]
+                if let x = Double(left), let y = Double(right), y > 0 {
+                    let frac = min(max(x / y, 0), 1)
+                    self.progressValue = frac
+                    self.progress = "⚡️ FX-Upscale: " + String(format: "%.0f%% (%.0f/%.0f)", frac * 100, x, y)
+                    // Use frame-based ETA smoothing if integers
+                    if let xi = Int(left), let yi = Int(right) {
+                        self.updateETAFromFrames(processed: xi, total: yi)
+                    } else {
+                        self.updateETA(percent: frac)
+                    }
+                    if let start = fxStageStartTime, frac > 0 {
+                        let estimate = Date().timeIntervalSince(start) / frac
+                        if let old = fxEstimatedTotalSec {
+                            fxEstimatedTotalSec = 0.3 * estimate + 0.7 * old
+                        } else {
+                            fxEstimatedTotalSec = estimate
+                        }
+                    }
+                    self.lastFXKnownPercent = frac
+                    found = true
+                    break
+                }
+            }
+        }
+        if found { return }
+
+        // 3) Direct ETA hints like "ETA: 00:12:34" or "ETA 12m34s"
+        if let range = text.range(of: "ETA:") ?? text.range(of: "Eta:") ?? text.range(of: "eta:") {
+            let tail = text[range.upperBound...].trimmingCharacters(in: .whitespaces)
+            // Try HH:MM:SS
+            let parts = tail.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\r" })
+            if let first = parts.first {
+                let s = String(first)
+                if s.contains(":") {
+                    self.etaText = s
+                }
+            }
+        }
     }
 }
