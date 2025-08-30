@@ -2,17 +2,23 @@
 import PackageDescription
 
 let package = Package(
-    name: "VidyScaler",
+    name: "MaccyScaler",
     platforms: [
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "VidyScaler", targets: ["VidyScaler"])
+        .executable(name: "MaccyScaler", targets: ["MaccyScaler"]),
+        .executable(name: "coreml-vsr-cli", targets: ["CoreMLVSRCLI"]) 
     ],
     targets: [
         .executableTarget(
-            name: "VidyScaler",
+            name: "MaccyScaler",
             path: ".",
+            sources: ["main.swift"]
+        ),
+        .executableTarget(
+            name: "CoreMLVSRCLI",
+            path: "Tools/coreml-vsr-cli",
             sources: ["main.swift"]
         )
     ]

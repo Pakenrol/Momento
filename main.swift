@@ -6,7 +6,7 @@ import CoreImage.CIFilterBuiltins
 import CoreML
 // MARK: - Project Memory/Init
 /*
- VidyScaler - Продвинутый видеоапскейлер для реставрации старых видео
+ MaccyScaler - Продвинутый видеоапскейлер для реставрации старых видео
  АРХИТЕКТУРА:
  - Waifu2x: Быстрый режим (в 4.7 раз быстрее Real-ESRGAN)
  - RealCUGAN: Качественный режим (лучшее соотношение качество/скорость)
@@ -20,7 +20,7 @@ import CoreML
  2. Качество: RealCUGAN (0.28с на кадр)
 */
 @main
-struct VidyScalerApp: App {
+struct MaccyScalerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -78,7 +78,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 25) {
             // Заголовок
             VStack(alignment: .leading, spacing: 8) {
-                Text("VidyScaler")
+                Text("MaccyScaler")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
@@ -298,21 +298,73 @@ struct ContentView: View {
     }
     // MARK: - Paths helpers
     private func projectRoot() -> URL {
-        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/VidyScaler")
+        // Try resolve relative to running bundle first, then workspace paths.
+        let fm = FileManager.default
+        // 1) App bundle Resources/bin (for packaged app)
+        if let bundleURL = Bundle.main.resourceURL {
+            let candidate = bundleURL.deletingLastPathComponent().appendingPathComponent("Resources")
+            if fm.fileExists(atPath: candidate.path) { return candidate.deletingLastPathComponent() }
+        }
+        // 2) Repo-local path (this workspace): Documents/coding/maccyscaler
+        let repoNewLower = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/coding/maccyscaler")
+        if fm.fileExists(atPath: repoNewLower.path) { return repoNewLower }
+        // 3) New capitalized path
+        let repoNewCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")
+        if fm.fileExists(atPath: repoNewCap.path) { return repoNewCap }
+        // 4) Backward compatibility: old lowercase/uppercase paths
+        let repoOldLower = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/coding/vidyscaler")
+        if fm.fileExists(atPath: repoOldLower.path) { return repoOldLower }
+        let repoOldCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")
+        if fm.fileExists(atPath: repoOldCap.path) { return repoOldCap }
+        // 5) As a last resort, current working directory
+        return URL(fileURLWithPath: fm.currentDirectoryPath)
     }
     private func projectBin() -> URL {
-        projectRoot().appendingPathComponent("bin")
+        // Prefer repo-local bin/
+        let bin = projectRoot().appendingPathComponent("bin")
+        return bin
     }
     private func findBinary(_ name: String) -> String? {
+        let fm = FileManager.default
+        // Common locations + project bin
         let candidates = [
             projectBin().appendingPathComponent(name).path,
             "/opt/homebrew/bin/\(name)",
-            "/usr/local/bin/\(name)"
+            "/usr/local/bin/\(name)",
+            "/usr/bin/\(name)"
         ]
         for p in candidates {
-            if FileManager.default.isExecutableFile(atPath: p) { return p }
+            if fm.isExecutableFile(atPath: p) { return p }
         }
         return nil
+    }
+    private func ffmpegPath() -> String {
+        return findBinary("ffmpeg") ?? "/opt/homebrew/bin/ffmpeg"
+    }
+    private func ffprobePath() -> String {
+        return findBinary("ffprobe") ?? "/opt/homebrew/bin/ffprobe"
+    }
+    private func systemThreads() -> Int {
+        return max(ProcessInfo.processInfo.activeProcessorCount, 1)
+    }
+    private func systemMemoryGB() -> Int {
+        let bytes = ProcessInfo.processInfo.physicalMemory
+        return Int((bytes + (1 << 29)) >> 30) // round to GB
+    }
+    private func tunedTileSize() -> String {
+        // Conservative auto-tuning for Apple Silicon unified memory
+        let gb = systemMemoryGB()
+        if gb >= 64 { return "960" }
+        if gb >= 32 { return "768" }
+        if gb >= 16 { return "640" }
+        return "512"
+    }
+    private func tunedJobs(fast: Bool) -> String {
+        // Use CPU threads for IO/pre/post stages around GPU
+        // Keep some headroom to avoid contention
+        let t = systemThreads()
+        let base = max(min(t - 2, fast ? 12 : 8), fast ? 4 : 3)
+        return "\(base):\(base):\(base)"
     }
     private func runVSRPipeline(input: URL, width: Int, height: Int) {
         // Оптимальный выбор алгоритма по режиму
@@ -342,14 +394,22 @@ struct ContentView: View {
     }
     // MARK: - Core ML VSR Pipeline (frames -> denoise -> VSR x2 -> assemble)
     private func areCoreMLModelsAvailable() -> Bool {
-        let base = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/VidyScaler/models-coreml")
-        let fastdvd = base.appendingPathComponent("FastDVDnet.mlmodelc")
-        let rbv = base.appendingPathComponent("RealBasicVSR_x2.mlmodelc")
-        return FileManager.default.fileExists(atPath: fastdvd.path) && FileManager.default.fileExists(atPath: rbv.path)
+        let candidates: [URL] = [
+            projectRoot().appendingPathComponent("models-coreml"),
+            URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler/models-coreml")
+        ]
+        for base in candidates {
+            let fastdvd = base.appendingPathComponent("FastDVDnet.mlmodelc")
+            let rbv = base.appendingPathComponent("RealBasicVSR_x2.mlmodelc")
+            if FileManager.default.fileExists(atPath: fastdvd.path) && FileManager.default.fileExists(atPath: rbv.path) {
+                return true
+            }
+        }
+        return false
     }
     private func extractFramesAndProcessCoreML(input: URL, output: URL) {
         // Создаем временную папку
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("VidyScaler_\(UUID().uuidString)")
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyScaler_\(UUID().uuidString)")
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             workingTempDir = tempDir
@@ -464,30 +524,34 @@ struct ContentView: View {
     private func writeImage(_ image: CIImage, to url: URL, context: CIContext, ext: String) throws {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let cgImage = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: colorSpace) else {
-            throw NSError(domain: "VidyScaler", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось создать CGImage"])
+            throw NSError(domain: "MaccyScaler", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось создать CGImage"])
         }
         let dest = CGImageDestinationCreateWithURL(url as CFURL, (ext == "png" ? kUTTypePNG : kUTTypeJPEG) as CFString, 1, nil)!
         var props: [CFString: Any] = [:]
         if ext == "jpg" { props[kCGImageDestinationLossyCompressionQuality] = 0.95 }
         CGImageDestinationAddImage(dest, cgImage, props as CFDictionary)
         if !CGImageDestinationFinalize(dest) {
-            throw NSError(domain: "VidyScaler", code: -2, userInfo: [NSLocalizedDescriptionKey: "Не удалось записать изображение"])
+            throw NSError(domain: "MaccyScaler", code: -2, userInfo: [NSLocalizedDescriptionKey: "Не удалось записать изображение"])
         }
     }
     private func extractFramesAndProcess(input: URL, output: URL, algorithm: String) {
         // Создаем временную папку
         let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("VidyScaler_\(UUID().uuidString)")
+            .appendingPathComponent("MaccyScaler_\(UUID().uuidString)")
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             workingTempDir = tempDir
             currentStep = "Извлечение кадров из видео"
             // Извлекаем кадры с помощью ffmpeg
             let extractProcess = Process()
-            extractProcess.launchPath = "/opt/homebrew/bin/ffmpeg"
+            extractProcess.launchPath = ffmpegPath()
             // Запрашиваем прогресс в stdout
             var args: [String] = [
                 "-hide_banner", "-v", "error",
+                // Decode as fast as possible on Apple Silicon
+                "-hwaccel", "videotoolbox",
+                "-threads", "0",
+                "-vsync", "0",
                 "-progress", "pipe:1",
                 "-i", input.path
             ]
@@ -563,8 +627,7 @@ struct ContentView: View {
         let outputFramesDir = tempDir.appendingPathComponent("upscaled")
         do {
             try FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true)
-            let projectDir = URL(fileURLWithPath: NSHomeDirectory())
-                .appendingPathComponent("Documents/Coding/VidyScaler")
+            let projectDir = projectRoot()
             let realESRGANPath = projectDir.appendingPathComponent("realesrgan-ncnn-vulkan")
             let modelsPath = projectDir.appendingPathComponent("models")
             // Выбираем модель/масштаб под режим, если доступна x2 — используем её, иначе x4
@@ -660,15 +723,25 @@ struct ContentView: View {
         }
         let process = Process()
         process.launchPath = bin
-        // Качественный режим: хорошее шумоподавление для лучшего качества, масштаб 2
+        // Параметры под режим
+        let (nVal, tile, jobs): (String, String, String) = {
+            if selectedMode == .fast {
+                return ("0", tunedTileSize(), tunedJobs(fast: true)) // максимум скорости
+            } else {
+                // Чуть меньше тайл и потоков для стабильности
+                let t = tunedTileSize()
+                let qualityTile = (Int(t) ?? 512) >= 640 ? "512" : t
+                return ("2", qualityTile, tunedJobs(fast: false))
+            }
+        }()
         process.arguments = [
             "-i", tempDir.path,
             "-o", outputFramesDir.path,
             "-s", "2",
-            "-n", "2",
+            "-n", nVal,
             "-f", frameExtension,
-            "-t", "512",
-            "-j", "2:4:2",
+            "-t", tile,
+            "-j", jobs,
             "-g", "0"
         ]
         self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
@@ -724,15 +797,24 @@ struct ContentView: View {
         }
         let process = Process()
         process.launchPath = bin
-        // Быстрый режим: без шумоподавления для скорости, масштаб 2, формат кадров — как frameExtension
+        // Параметры под режим
+        let (nW, tileW, jobsW): (String, String, String) = {
+            if selectedMode == .fast {
+                return ("0", tunedTileSize(), tunedJobs(fast: true)) // скорость
+            } else {
+                let t = tunedTileSize()
+                let qualityTile = (Int(t) ?? 512) >= 640 ? "512" : t
+                return ("2", qualityTile, tunedJobs(fast: false)) // качество
+            }
+        }()
         process.arguments = [
             "-i", tempDir.path,
             "-o", outputFramesDir.path,
             "-s", "2",
-            "-n", "0",
+            "-n", nW,
             "-f", frameExtension,
-            "-t", "512",
-            "-j", "2:4:2",
+            "-t", tileW,
+            "-j", jobsW,
             "-g", "0"
         ]
         self.totalFramesCount = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == self.frameExtension }.count) ?? 0
@@ -791,22 +873,34 @@ struct ContentView: View {
         // Получаем FPS оригинального видео
         let fps = getVideoFPS(url: originalVideo)
         let process = Process()
-        process.launchPath = "/opt/homebrew/bin/ffmpeg"
+        process.launchPath = ffmpegPath()
         var args: [String] = [
             "-hide_banner", "-v", "error",
             "-progress", "pipe:1",
+            "-threads", "0",
+            "-vsync", "0",
             "-framerate", String(fps),
             "-i", "\(framesDir.path)/%08d.\(self.frameExtension)",
             "-i", originalVideo.path,
         ]
-        // Убираем дополнительное масштабирование - используем кадры как есть после апскейлинга
+        // Масштаб до целевого разрешения (быстро: bicubic, качество: lanczos)
+        let targetName = output.deletingPathExtension().lastPathComponent
+        if let xRange = targetName.range(of: #"_(\d+)x(\d+)$"#, options: .regularExpression) {
+            let dims = String(targetName[xRange]).dropFirst()
+            let parts = dims.split(separator: "x")
+            if parts.count == 2, let w = Int(parts[0]), let h = Int(parts[1]) {
+                let filt = (selectedMode == .fast) ? "bicubic" : "lanczos"
+                args += ["-vf", "scale=\(w):\(h):flags=\(filt)"]
+            }
+        }
         args += [
-            // аппаратный энкодер для ускорения сборки на Apple Silicon
             "-c:v", "hevc_videotoolbox",
-            "-preset", "fast",
+            "-preset", (selectedMode == .fast ? "fast" : "medium"),
             "-tag:v", "hvc1",
             "-pix_fmt", "yuv420p",
-            "-b:v", "8000k",
+            "-b:v", (selectedMode == .fast ? "8000k" : "12000k"),
+            "-realtime", "1",
+            "-movflags", "+faststart",
             "-c:a", "copy",
             "-map", "0:v:0",
             "-map", "1:a:0?",
@@ -893,7 +987,7 @@ struct ContentView: View {
     }
     private func getVideoSize(url: URL) -> (width: Int, height: Int) {
         let process = Process()
-        process.launchPath = "/opt/homebrew/bin/ffprobe"
+        process.launchPath = ffprobePath()
         process.arguments = [
             "-v", "quiet",
             "-print_format", "csv",
@@ -922,7 +1016,7 @@ struct ContentView: View {
     }
     private func getVideoFPS(url: URL) -> Double {
         let process = Process()
-        process.launchPath = "/opt/homebrew/bin/ffprobe"
+        process.launchPath = ffprobePath()
         process.arguments = [
             "-v", "quiet",
             "-print_format", "csv",
@@ -1010,7 +1104,7 @@ struct ContentView: View {
     }
     private func getVideoDuration(url: URL) -> Double {
         let process = Process()
-        process.launchPath = "/opt/homebrew/bin/ffprobe"
+        process.launchPath = ffprobePath()
         process.arguments = [
             "-v", "error",
             "-show_entries", "format=duration",

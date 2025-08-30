@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# VidyScaler: package into a .app, install to ~/Applications, and launch
+# MaccyScaler: package into a .app, install to ~/Applications, and launch
 
-APP_NAME="VidyScaler"
-BUNDLE_ID="com.pakenrol.vidyscaler"
+APP_NAME="MaccyScaler"
+BUNDLE_ID="com.pakenrol.maccyscaler"
 VERSION="0.1.0"
 OUT_DIR="dist"
 APP_DIR="$OUT_DIR/$APP_NAME.app"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="VidyScaler"
+APP_NAME="MaccyScaler"
 
 echo "Searching for old $APP_NAME.app bundles..."
 
@@ -33,4 +33,3 @@ for base in "$HOME/Desktop" "$HOME/Downloads" "$HOME/Documents" "$HOME/Applicati
 done
 
 echo "Cleanup finished. Removed $found bundle(s)."
-

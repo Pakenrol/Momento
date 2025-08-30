@@ -1,4 +1,4 @@
-# VidyScaler — текущее состояние и философия проекта
+# MaccyScaler — текущее состояние и философия проекта
 
 ## Философия
 - Рабочая лошадка: максимум качества и скорости без перегруза интерфейса. Пользователь выбирает файл и режим — остальное оптимизировано под капотом.
@@ -25,7 +25,7 @@
      - Масштаб до целевого размера (scale=WxH:flags=lanczos).
      - Аппаратный HEVC (hevc_videotoolbox, -tag:v hvc1, -pix_fmt yuv420p), аудио копируется.
 - Поиск бинарников:
-  - В первую очередь: ~/Documents/Coding/VidyScaler/bin/ (рекомендуемый путь).
+  - В первую очередь: ~/Documents/Coding/MaccyScaler/bin/ (рекомендуемый путь).
   - Затем: /opt/homebrew/bin и /usr/local/bin.
 
 ## Режимы
@@ -46,7 +46,7 @@
 - Рекомендуемые быстрые апскейлеры (ncnn):
   - waifu2x-ncnn-vulkan (macOS arm64 релиз).
   - realcugan-ncnn-vulkan (macOS arm64 релиз).
-  - Положить бинарники в ~/Documents/Coding/VidyScaler/bin/ (или в /opt/homebrew/bin).
+  - Положить бинарники в ~/Documents/Coding/MaccyScaler/bin/ (или в /opt/homebrew/bin).
 - Для интерполяции (Качество): rife-ncnn-vulkan (лежит в rife/rife-ncnn-vulkan).
 
 ## Установка быстрых апскейлеров
@@ -55,7 +55,7 @@
 - Ручная установка:
   - waifu2x: https://github.com/nihui/waifu2x-ncnn-vulkan/releases (macOS arm64).
   - RealCUGAN: https://github.com/bilibili/Real-CUGAN/releases (macOS arm64).
-  - Сделать бинарники исполняемыми и положить в ~/Documents/Coding/VidyScaler/bin/.
+  - Сделать бинарники исполняемыми и положить в ~/Documents/Coding/MaccyScaler/bin/.
 
 ## Прогресс, ETA и отмена
 - Прогресс извлечения и сборки: читаем -progress pipe:1 у ffmpeg (out_time_ms).
@@ -65,14 +65,14 @@
 - Ошибки: показываем NSAlert с «Подробности» (хвост stderr/stdout), чтобы быстро понять причину.
 
 ## Где лежат файлы
-- Исходники: Documents/Coding/VidyScaler/
-- Бинарники быстрых апскейлеров: Documents/Coding/VidyScaler/bin/ (рекомендуется).
-- RIFE: Documents/Coding/VidyScaler/rife/rife-ncnn-vulkan
-- Модели ESRGAN: Documents/Coding/VidyScaler/models/ (только как фолбэк).
+- Исходники: Documents/Coding/MaccyScaler/
+- Бинарники быстрых апскейлеров: Documents/Coding/MaccyScaler/bin/ (рекомендуется).
+- RIFE: Documents/Coding/MaccyScaler/rife/rife-ncnn-vulkan
+- Модели ESRGAN: Documents/Coding/MaccyScaler/models/ (только как фолбэк).
 
 ## Сборка и запуск
 - Обычная сборка и запуск .app:
-  - bash scripts/package_app.sh — соберёт Release, упакует VidyScaler.app, поставит в ~/Applications/ и запустит.
+  - bash scripts/package_app.sh — соберёт Release, упакует MaccyScaler.app, поставит в ~/Applications/ и запустит.
 - Очистка старых копий .app:
   - bash scripts/cleanup_old_apps.sh — удалит дубликаты из типичных мест.
 
@@ -81,7 +81,7 @@
 - Базовый пайплайн: FastDVDnet (денойз) → RealBasicVSR‑x2 (временная SR) → (Качество: fps↓/RIFE до 30) → HEVC.
 - Файлы:
   - scripts/convert_models_coreml/ — окружение/скрипты конвертации моделей в Core ML, README.
-  - Приложение автоматически переключится на Core ML, если найдёт ~/Documents/Coding/VidyScaler/models-coreml/FastDVDnet.mlmodelc/ и RealBasicVSR_x2.mlmodelc/.
+  - Приложение автоматически переключится на Core ML, если найдёт ~/Documents/Coding/MaccyScaler/models-coreml/FastDVDnet.mlmodelc/ и RealBasicVSR_x2.mlmodelc/.
 - Статус: каркас и автоподключение готовы, интеграция весов — после подготовки .mlmodelc.
 
 ## Приоритеты и компромиссы

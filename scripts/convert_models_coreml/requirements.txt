@@ -1,0 +1,9 @@
+coremltools>=6.4
+torch>=2.1
+torchvision>=0.16
+onnx>=1.14
+onnxsim>=0.4.33
+numpy
+Pillow
+mmcv>=2.0.0
+mmedit>=1.0.0
