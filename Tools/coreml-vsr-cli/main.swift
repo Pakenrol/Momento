@@ -1,5 +1,6 @@
 import Foundation
 import CoreML
+import CoreImage
 import AppKit
 
 // Simple CLI to run CoreML FastDVDnet denoising (5-frame window) then x2 SR.

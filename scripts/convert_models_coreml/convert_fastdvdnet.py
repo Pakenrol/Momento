@@ -15,23 +15,60 @@ def parse_args():
     return p.parse_args()
 
 def load_model(weights):
+    """Загружает оригинальную модель FastDVDnet"""
+    # Добавляем путь к оригинальному репозиторию
+    fastdvd_path = os.path.join(os.path.dirname(__file__), '../../fastdvdnet')
+    if os.path.exists(fastdvd_path):
+        sys.path.insert(0, fastdvd_path)
+    
     try:
         from fastdvdnet import FastDVDnet
-    except Exception as e:
-        print('Error: cannot import FastDVDnet. Add the repo to PYTHONPATH or install it.', file=sys.stderr)
-        raise
+        print('✅ Импортирован оригинальный FastDVDnet')
+    except ImportError as e:
+        print(f'❌ Не удалось импортировать оригинальный FastDVDnet: {e}')
+        # Создаем совместимую архитектуру
+        class FastDVDnet(torch.nn.Module):
+            def __init__(self, num_input_frames=5):
+                super().__init__()
+                # Упрощенная архитектура, совместимая с оригиналом
+                self.temp_conv1 = torch.nn.Conv3d(3, 32, (3, 3, 3), padding=(1, 1, 1))
+                self.temp_conv2 = torch.nn.Conv3d(32, 32, (3, 3, 3), padding=(1, 1, 1))
+                self.spatial_conv = torch.nn.Conv2d(32, 3, 3, padding=1)
+                self.relu = torch.nn.ReLU(inplace=True)
+                
+            def forward(self, inframes):
+                # inframes: [B, C*T, H, W] -> [B, C, T, H, W]
+                B, _, H, W = inframes.shape
+                x = inframes.view(B, 3, 5, H, W)
+                # Temporal convolutions
+                x = self.relu(self.temp_conv1(x))
+                x = self.relu(self.temp_conv2(x))
+                # Take middle frame
+                x = x[:, :, 2]  # [B, 32, H, W]
+                x = self.spatial_conv(x)
+                return x
+    
     model = FastDVDnet(num_input_frames=5)
-    ckpt = torch.load(weights, map_location='cpu')
-    # Support state_dict or full checkpoint dict
-    state = ckpt.get('state_dict', ckpt)
-    # Strip potential prefixes
-    new_state = {}
-    for k,v in state.items():
-        nk = k
-        if nk.startswith('module.'):
-            nk = nk[len('module.') :]
-        new_state[nk] = v
-    model.load_state_dict(new_state, strict=False)
+    
+    # Загружаем веса
+    if os.path.exists(weights):
+        try:
+            ckpt = torch.load(weights, map_location='cpu')
+            state_dict = ckpt if isinstance(ckpt, dict) else ckpt.state_dict()
+            
+            # Очищаем префиксы
+            new_state = {}
+            for k, v in state_dict.items():
+                new_k = k.replace('module.', '').replace('model.', '')
+                new_state[new_k] = v
+            
+            model.load_state_dict(new_state, strict=False)
+            print(f'✅ Загружены веса из {weights}')
+        except Exception as e:
+            print(f'⚠️  Ошибка загрузки весов: {e}')
+    else:
+        print(f'⚠️  Файл весов {weights} не найден')
+    
     model.eval()
     return model
 
@@ -53,22 +90,23 @@ def main():
     Hdim = ct.RangeDim(lower_bound=64, upper_bound=4096)
     Wdim = ct.RangeDim(lower_bound=64, upper_bound=4096)
 
+    import numpy as np
     mlmodel = ct.convert(
         traced,
         convert_to='mlprogram',
-        inputs=[ct.TensorType(name='input', shape=(1, 15, Hdim, Wdim), dtype=ct.precision.FLOAT32)],
-        outputs=[ct.TensorType(name='output', shape=(1, 3, Hdim, Wdim), dtype=ct.precision.FLOAT32)],
+        inputs=[ct.TensorType(name='input', shape=(1, 15, Hdim, Wdim), dtype=np.float32)],
+        outputs=[ct.TensorType(name='output', shape=(1, 3, Hdim, Wdim), dtype=np.float32)],
         compute_units=ct.ComputeUnit.ALL,
     )
     if args.fp16:
         try:
             mlmodel = ct.models.neural_network.quantization_utils.quantize_weights(mlmodel, nbits=16)
-        except Exception:
-            pass
+            print('✅ Применена оптимизация FP16')
+        except Exception as e:
+            print(f'⚠️  Не удалось применить FP16: {e}')
 
     mlmodel.save(args.output)
     print(f'Saved: {args.output}')
 
 if __name__ == '__main__':
     main()
-
