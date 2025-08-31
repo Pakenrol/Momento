@@ -1417,9 +1417,23 @@ extension ContentView {
     // Locate .mlpackage in SwiftPM bundle, app resources, sub-bundles, or workspace
     private func findMLPackage(_ baseName: String) -> URL? {
         let fm = FileManager.default
-        // 1) SwiftPM resource bundle
-        if let url = Bundle.module.url(forResource: baseName, withExtension: "mlpackage"), fm.fileExists(atPath: url.path) {
-            return url
+        print("[DEBUG] Поиск модели: \(baseName)")
+        // 1) Сразу проверяем workspace fallbacks (для development mode)
+        let candidates: [URL] = [projectRoot(), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")]
+        print("[DEBUG] Проверяю кандидатов: \(candidates.map { $0.path })")
+        for base in candidates {
+            let pTools = base.appendingPathComponent("Tools/\(baseName).mlpackage")
+            print("[DEBUG] Проверяю Tools: \(pTools.path) - существует: \(fm.fileExists(atPath: pTools.path))")
+            if fm.fileExists(atPath: pTools.path) { 
+                print("[DEBUG] Найден в Tools: \(pTools.path)")
+                return pTools 
+            }
+            let pRoot = base.appendingPathComponent("\(baseName).mlpackage")
+            print("[DEBUG] Проверяю Root: \(pRoot.path) - существует: \(fm.fileExists(atPath: pRoot.path))")
+            if fm.fileExists(atPath: pRoot.path) { 
+                print("[DEBUG] Найден в Root: \(pRoot.path)")
+                return pRoot 
+            }
         }
         // 2) App main bundle resources
         if let url = Bundle.main.url(forResource: baseName, withExtension: "mlpackage"), fm.fileExists(atPath: url.path) {
@@ -1442,14 +1456,8 @@ extension ContentView {
                 }
             }
         }
-        // 5) Workspace fallbacks (prefer Tools override if present)
-        let candidates: [URL] = [projectRoot(), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")]
-        for base in candidates {
-            let pTools = base.appendingPathComponent("Tools/\(baseName).mlpackage")
-            if fm.fileExists(atPath: pTools.path) { return pTools }
-            let pRoot = base.appendingPathComponent("\(baseName).mlpackage")
-            if fm.fileExists(atPath: pRoot.path) { return pRoot }
-        }
+        // Workspace fallbacks уже проверены выше
+        print("[DEBUG] Модель \(baseName) не найдена!")
         return nil
     }
     private func loadSavedRBVConfig() -> (RBVInputConfig, String)? {
