@@ -444,7 +444,7 @@ struct ContentView: View {
             extractFramesAndProcessCoreML(input: input, output: output)
             return
         }
-        let modelsDir = Bundle.main.resourceURL ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Resources")
+        let modelsDir = projectRoot()  // Используем тот же путь, что и в findMLPackage
         let p = Process()
         p.launchPath = execURL.path
         p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
