@@ -10,6 +10,7 @@ struct Args {
     var inputVideo: String = ""
     var modelsDir: String = ""
     var tempDir: URL = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyScaler_CLI_\(UUID().uuidString)")
+    var outputVideo: String? = nil
 }
 
 func parseArgs() -> Args? {
@@ -23,8 +24,10 @@ func parseArgs() -> Args? {
             if let v = it.next() { args.modelsDir = v }
         case "--tmp":
             if let v = it.next() { args.tempDir = URL(fileURLWithPath: v) }
+        case "--output":
+            if let v = it.next() { args.outputVideo = v }
         case "-h", "--help":
-            print("Usage: coreml-vsr-cli --input <video.mp4> --models <models-coreml-dir> [--tmp <dir>]")
+            print("Usage: coreml-vsr-cli --input <video.mp4> --models <models-coreml-dir> [--tmp <dir>] [--output <out.mp4>]")
             return nil
         default:
             print("Unknown arg: \(a)")
@@ -32,7 +35,7 @@ func parseArgs() -> Args? {
         }
     }
     guard !args.inputVideo.isEmpty, !args.modelsDir.isEmpty else {
-        print("Usage: coreml-vsr-cli --input <video.mp4> --models <models-coreml-dir>")
+        print("Usage: coreml-vsr-cli --input <video.mp4> --models <models-coreml-dir> [--tmp <dir>] [--output <out.mp4>]")
         return nil
     }
     return args
@@ -139,17 +142,27 @@ func main() throws {
     // 1) Extract frames as PNG
     try run(ffmpegPath(), ["-hide_banner","-y","-i", args.inputVideo, "-vsync","0", "-f","image2", "-pix_fmt","rgb24", framesDir.appendingPathComponent("%08d.png").path])
 
-    // 2) Load models if present
-    let fastDVDPath = URL(fileURLWithPath: args.modelsDir).appendingPathComponent("FastDVDnet.mlmodelc")
-    let rbvPath = URL(fileURLWithPath: args.modelsDir).appendingPathComponent("RealBasicVSR_x2.mlmodelc")
-    let hasFast = fm.fileExists(atPath: fastDVDPath.path)
-    let hasRBV = fm.fileExists(atPath: rbvPath.path)
-    let config = MLModelConfiguration()
-    if #available(macOS 13.0, *) {
-        config.computeUnits = .all
+    // 2) Load models (compile .mlpackage first if needed)
+    func loadModel(_ url: URL) throws -> MLModel {
+        let cfg = MLModelConfiguration(); if #available(macOS 13.0, *) { cfg.computeUnits = .all }
+        if url.pathExtension == "mlpackage" || url.pathExtension == "mlmodel" {
+            let compiled = try MLModel.compileModel(at: url)
+            return try MLModel(contentsOf: compiled, configuration: cfg)
+        }
+        return try MLModel(contentsOf: url, configuration: cfg)
     }
-    let fastModel = hasFast ? try MLModel(contentsOf: fastDVDPath, configuration: config) : nil
-    let rbvModel = hasRBV ? try MLModel(contentsOf: rbvPath, configuration: config) : nil
+    func findModel(_ name: String) -> URL? {
+        let root = URL(fileURLWithPath: args.modelsDir)
+        let tools = root.appendingPathComponent("Tools/\(name)")
+        if fm.fileExists(atPath: tools.path) { return tools }
+        let direct = root.appendingPathComponent(name)
+        if fm.fileExists(atPath: direct.path) { return direct }
+        return nil
+    }
+    guard let fastURL = findModel("FastDVDnet.mlpackage") else { throw NSError(domain:"CoreMLVSRCLI", code:1, userInfo:[NSLocalizedDescriptionKey:"FastDVDnet.mlpackage not found in models dir"]) }
+    let rbvURL = findModel("RealBasicVSR_x2.mlpackage")
+    let fastModel = try loadModel(fastURL)
+    let rbvModel = try rbvURL.map(loadModel)
 
     // 3) Denoise via FastDVDnet (5-frame window), save center frame
     let frameFiles = (try fm.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil)).sorted { $0.lastPathComponent < $1.lastPathComponent }
@@ -173,9 +186,9 @@ func main() throws {
                 for t in 0..<count { arr[dstBase + t] = a[srcBase + t] }
             }
         }
-        if let fastModel = fastModel {
-            let input = try MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: arr)])
-            if let out = try? fastModel.prediction(from: input), let y = out.featureValue(for: "output")?.multiArrayValue {
+        if let fastModel = fastModel as MLModel? {
+            let input = try MLDictionaryFeatureProvider(dictionary: ["noisy": MLFeatureValue(multiArray: arr)])
+            if let out = try? fastModel.prediction(from: input), let y = out.featureValue(for: "denoised")?.multiArrayValue {
                 if let img = arrayToImage(y, width: w, height: h) {
                     savePNG(img, to: denoiseDir.appendingPathComponent(frameFiles[i].lastPathComponent))
                 }
@@ -210,10 +223,9 @@ func main() throws {
     }
 
     // 5) Reassemble video using source FPS
-    let outURL = URL(fileURLWithPath: args.inputVideo).deletingPathExtension().appendingPathComponent("")
-    let outputVideo = URL(fileURLWithPath: args.inputVideo).deletingPathExtension().appendingPathExtension("coreml_x2.mp4")
-    try run(ffmpegPath(), ["-hide_banner","-y","-framerate","30","-i", upscaledDir.appendingPathComponent("%08d.png").path, "-c:v","hevc_videotoolbox","-tag:v","hvc1","-pix_fmt","yuv420p", outputVideo.path])
-    print("Saved: \(outputVideo.path)")
+    let outputURL = args.outputVideo != nil ? URL(fileURLWithPath: args.outputVideo!) : URL(fileURLWithPath: args.inputVideo).deletingPathExtension().appendingPathExtension("coreml_x2.mp4")
+    try run(ffmpegPath(), ["-hide_banner","-y","-framerate","30","-i", upscaledDir.appendingPathComponent("%08d.png").path, "-c:v","libx264","-crf","18","-preset","veryfast","-pix_fmt","yuv420p", outputURL.path])
+    print("Saved: \(outputURL.path)")
 }
 
 do { try main() } catch { fputs("Error: \(error)\n", stderr) }

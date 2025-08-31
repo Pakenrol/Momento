@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# MaccyScaler: package into a .app, install to ~/Applications, and launch
+# MaccyScaler: package into a .app, install to /Applications only, and launch
 
 APP_NAME="MaccyScaler"
 BUNDLE_ID="com.pakenrol.maccyscaler"
@@ -23,7 +23,7 @@ fi
 echo "Cleaning previous dist bundle..."
 rm -rf "$APP_DIR"
 echo "[2/5] Creating bundle structure..."
-mkdir -p "$APP_DIR/Contents/MacOS"
+mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
 echo "[3/5] Writing Info.plist..."
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
@@ -57,16 +57,63 @@ echo "[4/5] Copying binary..."
 cp -f "$BIN_PATH" "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DIR/Contents/MacOS/$APP_NAME"
 
+# Build and copy CLI helper into the app bundle for headless pipeline
+CLI_BIN=".build/release/coreml-vsr-cli"
+if [[ -x "$CLI_BIN" ]]; then
+  echo "Copying coreml-vsr-cli into app bundle..."
+  cp -f "$CLI_BIN" "$APP_DIR/Contents/MacOS/coreml-vsr-cli"
+  chmod +x "$APP_DIR/Contents/MacOS/coreml-vsr-cli"
+else
+  echo "Warning: coreml-vsr-cli not found at $CLI_BIN"
+fi
+
+# Copy SwiftPM resource bundle (models) if present
+RES_BUNDLE=".build/release/${APP_NAME}_${APP_NAME}.bundle"
+if [[ -d "$RES_BUNDLE" ]]; then
+  echo "Copying resources bundle..."
+  rsync -a "$RES_BUNDLE" "$APP_DIR/Contents/Resources/"
+else
+  echo "Warning: resources bundle not found at $RES_BUNDLE"
+fi
+
+# Also place raw mlpackage folders at top-level Resources for direct lookup
+# Prefer Tools/RealBasicVSR_x2.mlpackage if present (override broken root copies)
+if [[ -d "Tools/RealBasicVSR_x2.mlpackage" ]]; then
+  echo "Copying Tools/RealBasicVSR_x2.mlpackage into app Resources (preferred)..."
+  rsync -a "Tools/RealBasicVSR_x2.mlpackage" "$APP_DIR/Contents/Resources/"
+else
+  if [[ -d "RealBasicVSR_x2.mlpackage" ]]; then
+    echo "Copying RealBasicVSR_x2.mlpackage into app Resources..."
+    rsync -a "RealBasicVSR_x2.mlpackage" "$APP_DIR/Contents/Resources/"
+  fi
+fi
+if [[ -d "FastDVDnet.mlpackage" ]]; then
+  echo "Copying FastDVDnet.mlpackage into app Resources..."
+  rsync -a "FastDVDnet.mlpackage" "$APP_DIR/Contents/Resources/"
+fi
+
 if command -v codesign >/dev/null 2>&1; then
   echo "Signing (ad-hoc)..."
   codesign --force -s - "$APP_DIR" || true
 fi
 
-echo "[5/5] Installing to ~/Applications and launching..."
-mkdir -p "$HOME/Applications"
-# Remove previously installed app to ensure a clean install
-rm -rf "$HOME/Applications/$APP_NAME.app"
-rsync -a "$APP_DIR" "$HOME/Applications/"
-open "$HOME/Applications/$APP_NAME.app"
+echo "[5/5] Installing to /Applications and launching..."
+# Clean up any old copies in user folders
+rm -rf "$HOME/Applications/$APP_NAME.app" || true
+rm -rf "$HOME/Desktop/$APP_NAME.app" "$HOME/Downloads/$APP_NAME.app" "$HOME/Documents/$APP_NAME.app" || true
 
-echo "Done. Installed to $HOME/Applications/$APP_NAME.app"
+# Install to system Applications (requires privileges)
+INSTALL_DIR="/Applications"
+if [[ ! -d "$INSTALL_DIR" ]]; then
+  echo "Creating $INSTALL_DIR..."
+  mkdir -p "$INSTALL_DIR"
+fi
+rm -rf "$INSTALL_DIR/$APP_NAME.app"
+rsync -a "$APP_DIR" "$INSTALL_DIR/"
+
+# Remove local dist copy to ensure the app exists only in /Applications
+rm -rf "$APP_DIR"
+
+open "$INSTALL_DIR/$APP_NAME.app"
+
+echo "Done. Installed to $INSTALL_DIR/$APP_NAME.app"

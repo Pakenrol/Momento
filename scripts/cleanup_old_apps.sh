@@ -32,4 +32,15 @@ for base in "$HOME/Desktop" "$HOME/Downloads" "$HOME/Documents" "$HOME/Applicati
   done < <(find "$base" -maxdepth 2 -type d -name "$APP_NAME.app" -print0)
 done
 
+# Remove any nested duplicates under /Applications except the canonical one
+if [[ -d "/Applications" ]]; then
+  while IFS= read -r -d '' app; do
+    if [[ "$app" != "/Applications/$APP_NAME.app" ]]; then
+      echo "Removing nested duplicate: $app"
+      rm -rf "$app"
+      found=$((found+1))
+    fi
+  done < <(find "/Applications" -mindepth 2 -type d -name "$APP_NAME.app" -print0)
+fi
+
 echo "Cleanup finished. Removed $found bundle(s)."
