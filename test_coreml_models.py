@@ -16,11 +16,11 @@ def test_models():
         
         # Создаем тестовый вход [1, 15, 256, 256]
         test_input = np.random.rand(1, 15, 256, 256).astype(np.float32)
-        input_dict = {"x_9": test_input}
+        input_dict = {"noisy": test_input}
         
         # Предсказание
         output = fastdvd_model.predict(input_dict)
-        output_array = output["var_979"]
+        output_array = output["denoised"]
         
         print(f"✅ FastDVDnet: {test_input.shape} -> {output_array.shape}")
         
@@ -34,11 +34,11 @@ def test_models():
         
         # Создаем тестовый вход [1, 3, 256, 256]
         test_input = np.random.rand(1, 3, 256, 256).astype(np.float32)
-        input_dict = {"x_1": test_input}
+        input_dict = {"input": test_input}
         
         # Предсказание
         output = rbv_model.predict(input_dict)
-        output_array = output["var_867"]
+        output_array = output["output"]
         
         print(f"✅ RealBasicVSR: {test_input.shape} -> {output_array.shape}")
         
@@ -76,9 +76,9 @@ def test_video_frame():
         rbv_model = ct.models.MLModel("RealBasicVSR_x2.mlpackage")
         
         # Предсказание
-        input_dict = {"x_1": frame_tensor}
+        input_dict = {"input": frame_tensor}
         output = rbv_model.predict(input_dict)
-        output_array = output["var_867"]
+        output_array = output["output"]
         
         print(f"✅ Реальный тест: {frame_tensor.shape} -> {output_array.shape}")
         

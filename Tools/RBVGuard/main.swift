@@ -189,7 +189,7 @@ func main() throws {
     var axisCandidates = [1,3]
     // Load once to inspect
     let modelGPU = try loadModel(at: rbvURL, units: .all)
-    if let c = modelGPU.modelDescription.inputDescriptionsByName["x_1"]?.multiArrayConstraint {
+    if let c = modelGPU.modelDescription.inputDescriptionsByName["input"]?.multiArrayConstraint {
         let shp = c.shape.map{ $0.intValue }
         if shp.count == 4, let ch = (0..<4).first(where: { shp[$0] == 3 }) { axisCandidates = [ch] + axisCandidates.filter{ $0 != ch } }
     }
@@ -203,8 +203,8 @@ func main() throws {
             for m in modes {
                 for b in [false,true] {
                     guard let inp = applyMap(src, axis: ax, mode: m, bgr: b) else { continue }
-                    let prov = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: inp)])
-                    guard let out = try? model.prediction(from: prov).featureValue(for: "var_867")?.multiArrayValue else { continue }
+                    let prov = try MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: inp)])
+                    guard let out = try? model.prediction(from: prov).featureValue(for: "output")?.multiArrayValue else { continue }
                     let (std, colorFrac) = statsColor(out)
                     // Accept if we have both variance and color
                     if colorFrac > 0.02 && std > 0.01 {

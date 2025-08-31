@@ -550,10 +550,10 @@ struct ContentView: View {
                     // Создаем входной тензор [1, 15, 256, 256]
                     if let inputArray = self.create5FrameInput(frames: frameWindow) {
                         do {
-                            let inputFeatures = try MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: inputArray)])
+                            let inputFeatures = try MLDictionaryFeatureProvider(dictionary: ["noisy": MLFeatureValue(multiArray: inputArray)])
                             let output = try fastDVDModel.prediction(from: inputFeatures)
                             
-                            if let denoisedArray = output.featureValue(for: "var_979")?.multiArrayValue {
+                            if let denoisedArray = output.featureValue(for: "denoised")?.multiArrayValue {
                                 denoisedFrames.append(denoisedArray)
                             } else {
                                 if let arr = self.nsImageToMLMultiArray(frameWindow[2]) { denoisedFrames.append(arr) }
@@ -580,10 +580,10 @@ struct ContentView: View {
                 if self.cancelRequested { return }
                 autoreleasepool {
                     do {
-                        let inputFeatures = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: denoisedArray)])
+                        let inputFeatures = try MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: denoisedArray)])
                         let output = try realBasicVSRModel.prediction(from: inputFeatures)
                             
-                            if let upscaledArray = output.featureValue(for: "var_867")?.multiArrayValue,
+                            if let upscaledArray = output.featureValue(for: "output")?.multiArrayValue,
                                let upscaledImage = self.multiArrayToNSImage(upscaledArray) {
                                 let outputURL = outputFramesDir.appendingPathComponent(files[idx].lastPathComponent)
                                 self.saveNSImage(upscaledImage, to: outputURL)
@@ -677,8 +677,8 @@ struct ContentView: View {
                     var tensors: [MLMultiArray] = []
                     for j in -2...2 { let fi = max(0, min(files.count - 1, idx + j)); if let t = tensorForFrame(fi) { tensors.append(t) } }
                     guard tensors.count == 5, let window = self.create5FrameInputFromTensors(tensors) else { return }
-                    if let out = try? fastDVDModel.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: window)]), options: opts),
-                       let arr = out.featureValue(for: "var_979")?.multiArrayValue {
+                    if let out = try? fastDVDModel.prediction(from: MLDictionaryFeatureProvider(dictionary: ["noisy": MLFeatureValue(multiArray: window)]), options: opts),
+                       let arr = out.featureValue(for: "denoised")?.multiArrayValue {
                         denoisedLock.lock(); denoisedArrays[idx] = arr; denoisedLock.unlock()
                     }
                     done1 += 1
@@ -714,7 +714,7 @@ struct ContentView: View {
                 let savedCfg = saved.0; let savedUnits = saved.1
                 if let testInS = self.applyLayoutAndNorm(a, axis: savedCfg.channelAxis, mode: savedCfg.mode, bgrSwap: savedCfg.bgrSwap) {
                     let modelS = (savedUnits == "CPU") ? (self.loadCoreMLModel(name: "RealBasicVSR_x2.mlpackage", units: .cpuOnly) ?? realBasicVSRModel) : realBasicVSRModel
-                    if let outS = try? modelS.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: testInS)])), let upS = outS.featureValue(for: "var_867")?.multiArrayValue {
+                    if let outS = try? modelS.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: testInS)])), let upS = outS.featureValue(for: "output")?.multiArrayValue {
                         let scS = self.statsColor(upS)
                         if scS.std > 0.01 && scS.colorFrac > 0.02 {
                             rbvCfg = savedCfg; unitsUsed = savedUnits
@@ -728,19 +728,19 @@ struct ContentView: View {
                     rbvCfg = self.calibrateRBVConfig(example: a, rbv: realBasicVSRModel)
                 }
             } else {
-                rbvCfg = calibArr != nil ? self.calibrateRBVConfig(example: calibArr!, rbv: realBasicVSRModel) : RBVInputConfig(channelAxis: (self.modelChannelAxis(realBasicVSRModel, input: "x_1") ?? 1), mode: 0, bgrSwap: false)
+                rbvCfg = calibArr != nil ? self.calibrateRBVConfig(example: calibArr!, rbv: realBasicVSRModel) : RBVInputConfig(channelAxis: (self.modelChannelAxis(realBasicVSRModel, input: "input") ?? 1), mode: 0, bgrSwap: false)
             }
             // 1) Verify on GPU and maybe fallback to CPU
             if let a = calibArr, let testIn = self.applyLayoutAndNorm(a, axis: rbvCfg.channelAxis, mode: rbvCfg.mode, bgrSwap: rbvCfg.bgrSwap),
-                let testOut = try? realBasicVSRModel.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: testIn)])),
-                let up = testOut.featureValue(for: "var_867")?.multiArrayValue {
+                let testOut = try? realBasicVSRModel.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: testIn)])),
+                let up = testOut.featureValue(for: "output")?.multiArrayValue {
                 let scGPU = self.statsColor(up)
                 if scGPU.std < 0.005 || scGPU.colorFrac < 0.01, let rbvCPU = self.loadCoreMLModel(name: "RealBasicVSR_x2.mlpackage", units: .cpuOnly) {
                     // Пробуем CPU-режим и перекалибровку
                     let cfgCPU = self.calibrateRBVConfig(example: a, rbv: rbvCPU)
                     if let testIn2 = self.applyLayoutAndNorm(a, axis: cfgCPU.channelAxis, mode: cfgCPU.mode, bgrSwap: cfgCPU.bgrSwap),
-                       let out2 = try? rbvCPU.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: testIn2)])),
-                       let up2 = out2.featureValue(for: "var_867")?.multiArrayValue {
+                       let out2 = try? rbvCPU.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: testIn2)])),
+                       let up2 = out2.featureValue(for: "output")?.multiArrayValue {
                         let scCPU = self.statsColor(up2)
                         if scCPU.std > scGPU.std || scCPU.colorFrac > scGPU.colorFrac {
                             realBasicVSRModel = rbvCPU; rbvCfg = cfgCPU; unitsUsed = "CPU"
@@ -783,8 +783,8 @@ struct ContentView: View {
                             self.saveNSImage(self.resizeImage(srcImg, scale: 2.0), to: url)
                         }
                     } else if let a = inputArr, let input = self.applyLayoutAndNorm(a, axis: rbvCfg.channelAxis, mode: rbvCfg.mode, bgrSwap: rbvCfg.bgrSwap),
-                        let out = try? realBasicVSRModel.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: input)]), options: opts),
-                        let up = out.featureValue(for: "var_867")?.multiArrayValue {
+                        let out = try? realBasicVSRModel.prediction(from: MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: input)]), options: opts),
+                        let up = out.featureValue(for: "output")?.multiArrayValue {
                         let url = outputFramesDir.appendingPathComponent(files[idx].lastPathComponent)
                         let sc = self.statsColor(up)
                         let useDirect = self.isImageLike(up) && sc.std > 0.01 && sc.colorFrac > 0.02
@@ -1327,7 +1327,7 @@ extension ContentView {
         return result
     }
     private func calibrateRBVConfig(example: MLMultiArray, rbv: MLModel) -> RBVInputConfig {
-        let detected = modelChannelAxis(rbv, input: "x_1")
+        let detected = modelChannelAxis(rbv, input: "input")
         let axisCandidates: [Int] = detected != nil ? [detected!] : [1,3]
         var bestCfg = RBVInputConfig(channelAxis: axisCandidates.first ?? 1, mode: 0, bgrSwap: false)
         var bestStd: Double = -1
@@ -1337,8 +1337,8 @@ extension ContentView {
             for m in modes {
                 for bgr in [false, true] {
                     if let adapted = applyLayoutAndNorm(example, axis: ax, mode: m, bgrSwap: bgr),
-                       let out = try? rbv.prediction(from: try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: adapted)])),
-                       let up = out.featureValue(for: "var_867")?.multiArrayValue {
+                       let out = try? rbv.prediction(from: try MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: adapted)])),
+                       let up = out.featureValue(for: "output")?.multiArrayValue {
                         let sc = statsColor(up)
                         // Prefer combos that pass thresholds, then by colorFrac, then std
                         let passes = (sc.std > 0.01 && sc.colorFrac > 0.02)

@@ -152,15 +152,15 @@ func runDiagnostics(videoPath: String?) throws {
     for f in 0..<5 { for c in 0..<3 { for i in 0..<(256*256) {
         input[f*3*256*256 + c*256*256 + i] = window[f][c*256*256 + i]
     }}}
-    let inputProv = try MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: input)])
+    let inputProv = try MLDictionaryFeatureProvider(dictionary: ["noisy": MLFeatureValue(multiArray: input)])
     let outFast = try fast.prediction(from: inputProv)
-    guard let denArr = outFast.featureValue(for: "var_979")?.multiArrayValue else { print("FastDVDnet no output"); return }
+    guard let denArr = outFast.featureValue(for: "denoised")?.multiArrayValue else { print("FastDVDnet no output"); return }
     let s1 = stats(denArr)
     print(String(format: "FastDVDnet stats: min=%.4f max=%.4f mean=%.4f std=%.4f", s1.min, s1.max, s1.mean, s1.std))
     
     // Prepare RBV input (layout adapt if needed)
     var rbvInput = denArr
-    if let c = rbv.modelDescription.inputDescriptionsByName["x_1"]?.multiArrayConstraint {
+    if let c = rbv.modelDescription.inputDescriptionsByName["input"]?.multiArrayConstraint {
         let shp = c.shape.map{$0.intValue}
         if shp.count == 4, let ch = (0..<4).first(where: { shp[$0] == 3 }) {
             if ch == 3 {
@@ -176,9 +176,9 @@ func runDiagnostics(videoPath: String?) throws {
             }
         }
     }
-    let rbvProv = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: rbvInput)])
+    let rbvProv = try MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: rbvInput)])
     let outRBV = try rbv.prediction(from: rbvProv)
-    guard let up = outRBV.featureValue(for: "var_867")?.multiArrayValue else { print("RBV no output"); return }
+    guard let up = outRBV.featureValue(for: "output")?.multiArrayValue else { print("RBV no output"); return }
     let s2 = stats(up)
     print(String(format: "RBV stats: min=%.4f max=%.4f mean=%.4f std=%.4f", s2.min, s2.max, s2.mean, s2.std))
     
