@@ -187,8 +187,8 @@ func main() throws {
             }
         }
         if let fastModel = fastModel as MLModel? {
-            let input = try MLDictionaryFeatureProvider(dictionary: ["noisy": MLFeatureValue(multiArray: arr)])
-            if let out = try? fastModel.prediction(from: input), let y = out.featureValue(for: "denoised")?.multiArrayValue {
+            let input = try MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: arr)])
+            if let out = try? fastModel.prediction(from: input), let y = out.featureValue(for: "var_979")?.multiArrayValue {
                 if let img = arrayToImage(y, width: w, height: h) {
                     savePNG(img, to: denoiseDir.appendingPathComponent(frameFiles[i].lastPathComponent))
                 }
@@ -204,8 +204,8 @@ func main() throws {
         guard let rep = loadImage(url), let (arr, w, h) = imageToArrayRGB(rep) else { continue }
         var saved = false
         if let rbv = rbvModel {
-            let input = try MLDictionaryFeatureProvider(dictionary: ["input": MLFeatureValue(multiArray: arr)])
-            if let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "output")?.multiArrayValue {
+            let input = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: arr)])
+            if let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "var_867")?.multiArrayValue {
                 if let img = arrayToImage(y, width: w*2, height: h*2) {
                     savePNG(img, to: upscaledDir.appendingPathComponent(url.lastPathComponent))
                     saved = true
