@@ -438,16 +438,33 @@ struct ContentView: View {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyScaler_CLI_\(UUID().uuidString)")
         do { try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true) } catch {}
         workingTempDir = tempDir
-        // Locate CLI binary and models dir in app bundle
-        guard let execURL = Bundle.main.url(forResource: "coreml-vsr-cli", withExtension: nil, subdirectory: nil) else {
-            // Fallback to in-process if CLI missing
+        
+        // Build and run CLI tool from source instead of looking in bundle
+        let projectRootDir = projectRoot()
+        let cliPath = projectRootDir.appendingPathComponent("Tools/coreml-vsr-cli")
+        
+        // Check if CLI source exists
+        guard FileManager.default.fileExists(atPath: cliPath.path) else {
+            print("[ERROR] CLI source not found at: \(cliPath.path)")
             extractFramesAndProcessCoreML(input: input, output: output)
             return
         }
-        let modelsDir = projectRoot()  // Используем тот же путь, что и в findMLPackage
+        
+        let modelsDir = projectRootDir
+        // Use pre-compiled CLI binary for faster execution
+        let cliBinaryPath = cliPath.appendingPathComponent(".build/arm64-apple-macosx/release/coreml-vsr-cli")
+        
         let p = Process()
-        p.launchPath = execURL.path
-        p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
+        if FileManager.default.isExecutableFile(atPath: cliBinaryPath.path) {
+            // Use pre-compiled binary if available
+            p.launchPath = cliBinaryPath.path
+            p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
+        } else {
+            // Fallback to swift run (slower)
+            p.launchPath = "/usr/bin/swift"
+            p.arguments = ["run", "--package-path", cliPath.path, "coreml-vsr-cli", "--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
+        }
+        p.currentDirectoryPath = projectRootDir.path
         currentProcess = p
         let out = Pipe(); let err = Pipe()
         p.standardOutput = out; p.standardError = err
