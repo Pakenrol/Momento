@@ -19,6 +19,21 @@ jobs:
         run: |
           xcodebuild -version
 
+      - name: Import Developer ID certificate (optional)
+        if: ${{ secrets.MAC_CERT_P12 && secrets.MAC_CERT_PASSWORD }}
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="build.keychain"
+          security create-keychain -p "" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p "" "$KEYCHAIN"
+          echo "$MAC_CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -k "$KEYCHAIN" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "" "$KEYCHAIN"
+          security find-identity -v -p codesigning || true
+
       - name: Build and package
         env:
           PACKAGE_ONLY: '1'
@@ -29,7 +44,30 @@ jobs:
           # Optional signing identity if you import a certificate
           CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
         run: |
-          ./scripts/package_app.sh
+          VERSION="${GITHUB_REF_NAME#v}" MAKE_DMG=1 PACKAGE_ONLY=1 ./scripts/package_app.sh
+
+      - name: Notarize DMG with notarytool (API Key)
+        if: ${{ secrets.NOTARY_API_KEY && secrets.NOTARY_API_KEY_ID && secrets.NOTARY_API_ISSUER_ID }}
+        env:
+          NOTARY_API_KEY: ${{ secrets.NOTARY_API_KEY }}
+          NOTARY_API_KEY_ID: ${{ secrets.NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.NOTARY_API_ISSUER_ID }}
+        run: |
+          DMG=$(ls dist/*.dmg | head -n1)
+          echo "$NOTARY_API_KEY" > key.p8
+          xcrun notarytool submit "$DMG" --key key.p8 --key-id "$NOTARY_API_KEY_ID" --issuer "$NOTARY_API_ISSUER_ID" --wait
+          xcrun stapler staple -v "$DMG"
+
+      - name: Notarize DMG with notarytool (Apple ID)
+        if: ${{ secrets.NOTARY_APPLE_ID && secrets.NOTARY_PASSWORD && secrets.NOTARY_TEAM_ID && !secrets.NOTARY_API_KEY }}
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: |
+          DMG=$(ls dist/*.dmg | head -n1)
+          xcrun notarytool submit "$DMG" --apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM_ID" --wait
+          xcrun stapler staple -v "$DMG"
 
       - name: Package model zips
         run: |

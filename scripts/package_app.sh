@@ -217,6 +217,11 @@ make_dmg() {
   hdiutil create -volname "$APP_NAME" -fs HFS+ -srcfolder "$stage" -ov -format UDZO "$dmg_name" >/dev/null
   rm -rf "$stage"
   echo "DMG written to $dmg_name"
+  # Optionally sign the DMG with Developer ID
+  if [[ -n "${CODESIGN_IDENTITY:-}" ]] && command -v codesign >/dev/null 2>&1; then
+    echo "Signing DMG with identity: $CODESIGN_IDENTITY"
+    codesign --force --timestamp --options runtime --sign "$CODESIGN_IDENTITY" "$dmg_name" || true
+  fi
 }
 
 if [[ "${MAKE_DMG:-0}" == "1" ]]; then
