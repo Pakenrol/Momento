@@ -28,6 +28,18 @@ jobs:
         run: |
           ./scripts/package_app.sh
 
+      - name: Package model zips
+        run: |
+          mkdir -p dist
+          if [[ -d FastDVDnet.mlpackage ]]; then
+            ditto -c -k --sequesterRsrc --keepParent FastDVDnet.mlpackage dist/FastDVDnet.mlpackage.zip
+          fi
+          if [[ -d Tools/RealBasicVSR_x2.mlpackage ]]; then
+            ditto -c -k --sequesterRsrc --keepParent Tools/RealBasicVSR_x2.mlpackage dist/RealBasicVSR_x2.mlpackage.zip
+          elif [[ -d RealBasicVSR_x2.mlpackage ]]; then
+            ditto -c -k --sequesterRsrc --keepParent RealBasicVSR_x2.mlpackage dist/RealBasicVSR_x2.mlpackage.zip
+          fi
+
       - name: Generate appcast
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -43,6 +55,7 @@ jobs:
             dist/Momento.app
             dist/*.dmg
             docs/appcast.xml
+            dist/*.zip
           if-no-files-found: warn
 
   # Optional: create a GitHub Release from the tag and attach the DMG
@@ -62,6 +75,7 @@ jobs:
           files: |
             dist/*.dmg
             dist/appcast.xml
+            dist/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -87,6 +101,8 @@ jobs:
           if [[ -f dist/appcast.xml ]]; then cp dist/appcast.xml docs/appcast.xml; fi
           # Publish DMG to Pages to match appcast URLs if needed
           if compgen -G "dist/*.dmg" > /dev/null; then cp dist/*.dmg docs/; fi
+          # Publish model zips to Pages as an alternate download base
+          if compgen -G "dist/*.zip" > /dev/null; then cp dist/*.zip docs/; fi
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
