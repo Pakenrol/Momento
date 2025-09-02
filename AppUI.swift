@@ -51,6 +51,10 @@ struct ContentView: View {
     @State private var enableRBVDiagnostics: Bool = false
     @State private var rbvDiagnosticsInfo: String = ""
     // FX-Upscale progress estimation
+    // Model download state
+    @State private var isDownloadingModels = false
+    @State private var modelDownloadStatus: String = ""
+    @State private var modelDownloadProgress: Double = 0.0
     var body: some View {
         VStack(alignment: .leading, spacing: 25) {
             // Header
@@ -109,6 +113,24 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     Spacer()
+                    Button(action: { downloadModelsTapped() }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: isDownloadingModels ? "arrow.down.circle.fill" : "arrow.down.circle")
+                            Text(isDownloadingModels ? "Downloading…" : "Download AI Models")
+                        }
+                    }
+                    .disabled(isDownloadingModels)
+                    .help("Fetch FastDVDnet + RealBasicVSR models into Application Support")
+                    if isDownloadingModels {
+                        ProgressView(value: modelDownloadProgress, total: 1.0)
+                            .frame(width: 120)
+                    }
+                    if !modelDownloadStatus.isEmpty {
+                        Text(modelDownloadStatus)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
                     if selectedFile != nil {
                         Button("🗑️ Clear") {
                             selectedFile = nil
@@ -284,7 +306,7 @@ struct ContentView: View {
         let targetHeight = originalSize.height * 2
         // Ensure CoreML models exist and start pipeline
         guard areCoreMLModelsAvailable() else {
-            finishWithError("Core ML models FastDVDnet.mlpackage and RealBasicVSR_x2.mlpackage not found. Place them next to the app or in Resources.")
+            finishWithError("Core ML models not found. Use ‘Download AI Models’ first or place FastDVDnet.mlpackage and RealBasicVSR_x2.mlpackage in Application Support/Momento/Models.")
             return
         }
         processVSRCoreML(input: inputURL, width: targetWidth, height: targetHeight)
@@ -298,16 +320,13 @@ struct ContentView: View {
             let candidate = bundleURL.deletingLastPathComponent().appendingPathComponent("Resources")
             if fm.fileExists(atPath: candidate.path) { return candidate.deletingLastPathComponent() }
         }
-        // 2) Repo-local path (this workspace): Documents/coding/maccyscaler
-        let repoNewLower = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/coding/maccyscaler")
-        if fm.fileExists(atPath: repoNewLower.path) { return repoNewLower }
-        // 3) New capitalized path
+        // 2) Repo-local path (this workspace): Documents/Coding/Momento
         let repoNewCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento")
         if fm.fileExists(atPath: repoNewCap.path) { return repoNewCap }
-        // 4) Backward compatibility: old lowercase/uppercase paths
+        // 3) Backward compatibility: old lowercase/uppercase paths
         let repoOldLower = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/coding/vidyscaler")
         if fm.fileExists(atPath: repoOldLower.path) { return repoOldLower }
-        let repoOldCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento")
+        let repoOldCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")
         if fm.fileExists(atPath: repoOldCap.path) { return repoOldCap }
         // 5) As a last resort, current working directory
         return URL(fileURLWithPath: fm.currentDirectoryPath)
@@ -440,8 +459,8 @@ struct ContentView: View {
         let cliSourceDir = projectRootDir.appendingPathComponent("Tools/coreml-vsr-cli")
         let devBuiltCLI = cliSourceDir.appendingPathComponent(".build/arm64-apple-macosx/release/coreml-vsr-cli")
 
-        // Models directory: prefer app Resources for packaged app, else project root
-        let modelsDir = Bundle.main.resourceURL ?? projectRootDir
+        // Models directory: prefer Application Support downloads, then app Resources, else project root
+        let modelsDir = preferredModelsDirectory()
 
         let p = Process()
         if fm.isExecutableFile(atPath: packagedCLI.path) {
@@ -1430,10 +1449,27 @@ extension ContentView {
         }
         return dst
     }
-    // Locate .mlpackage in SwiftPM bundle, app resources, sub-bundles, or workspace
+    // MARK: - Models location helpers
+    private func appSupportModelsDir() -> URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return base.appendingPathComponent("Momento/Models", isDirectory: true)
+    }
+    private func preferredModelsDirectory() -> URL {
+        let fm = FileManager.default
+        let appSup = appSupportModelsDir()
+        if fm.fileExists(atPath: appSup.appendingPathComponent("FastDVDnet.mlpackage").path) ||
+            fm.fileExists(atPath: appSup.appendingPathComponent("RealBasicVSR_x2.mlpackage").path) {
+            return appSup
+        }
+        return Bundle.main.resourceURL ?? projectRoot()
+    }
+    // Locate .mlpackage in App Support, SwiftPM bundle, app resources, sub-bundles, or workspace
     private func findMLPackage(_ baseName: String) -> URL? {
         let fm = FileManager.default
         print("[DEBUG] Looking for model: \(baseName)")
+        // 0) Application Support
+        let appSup = appSupportModelsDir().appendingPathComponent("\(baseName).mlpackage")
+        if fm.fileExists(atPath: appSup.path) { return appSup }
         // 1) Check workspace fallbacks first (development mode)
         let candidates: [URL] = [projectRoot(), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento"), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")]
         print("[DEBUG] Candidates: \(candidates.map { $0.path })")
@@ -1480,6 +1516,77 @@ extension ContentView {
         // Workspace fallbacks were checked above
         print("[DEBUG] Model \(baseName) not found!")
         return nil
+    }
+    // MARK: - Models download
+    private func modelBaseURL() -> URL {
+        if let str = Bundle.main.object(forInfoDictionaryKey: "ModelDownloadBaseURL") as? String, let url = URL(string: str) {
+            return url
+        }
+        // Default: GitHub Releases latest downloads under Pakenrol/Momento
+        return URL(string: "https://github.com/Pakenrol/Momento/releases/latest/download")!
+    }
+    private func downloadModelsTapped() {
+        if isDownloadingModels { return }
+        isDownloadingModels = true
+        modelDownloadProgress = 0
+        modelDownloadStatus = "Preparing…"
+        let targets = [
+            ("FastDVDnet.mlpackage.zip", "FastDVDnet.mlpackage"),
+            ("RealBasicVSR_x2.mlpackage.zip", "RealBasicVSR_x2.mlpackage")
+        ]
+        let base = modelBaseURL()
+        let destRoot = appSupportModelsDir()
+        do { try FileManager.default.createDirectory(at: destRoot, withIntermediateDirectories: true) } catch {}
+
+        func unzip(_ zipURL: URL, to destDir: URL, completion: @escaping (Bool, String?) -> Void) {
+            let task = Process()
+            task.launchPath = "/usr/bin/ditto"
+            task.arguments = ["-x", "-k", zipURL.path, destDir.path]
+            task.terminationHandler = { p in
+                DispatchQueue.main.async {
+                    completion(p.terminationStatus == 0, p.terminationStatus == 0 ? nil : "unzip failed")
+                }
+            }
+            do { try task.run() } catch { completion(false, error.localizedDescription) }
+        }
+
+        var completed = 0
+        func next() {
+            if completed >= targets.count {
+                isDownloadingModels = false
+                modelDownloadProgress = 1.0
+                modelDownloadStatus = areCoreMLModelsAvailable() ? "Models ready" : "Models installed"
+                return
+            }
+            let (file, folder) = targets[completed]
+            modelDownloadStatus = "Downloading \(folder)…"
+            let url = base.appendingPathComponent(file)
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".zip")
+            let req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 600)
+            let task = URLSession.shared.downloadTask(with: req) { local, resp, err in
+                if let err = err { DispatchQueue.main.async { self.failModelDownload("Download error: \(err.localizedDescription)") }; return }
+                guard let local = local else { DispatchQueue.main.async { self.failModelDownload("No data") }; return }
+                do { try FileManager.default.moveItem(at: local, to: tmp) } catch {
+                    DispatchQueue.main.async { self.failModelDownload("Temp move failed: \(error.localizedDescription)") }
+                    return
+                }
+                unzip(tmp, to: destRoot) { ok, msg in
+                    try? FileManager.default.removeItem(at: tmp)
+                    if !ok { self.failModelDownload(msg ?? "Unzip failed"); return }
+                    completed += 1
+                    DispatchQueue.main.async {
+                        self.modelDownloadProgress = Double(completed) / Double(targets.count)
+                        next()
+                    }
+                }
+            }
+            task.resume()
+        }
+        next()
+    }
+    private func failModelDownload(_ message: String) {
+        isDownloadingModels = false
+        modelDownloadStatus = message
     }
     private func loadSavedRBVConfig() -> (RBVInputConfig, String)? {
         let d = UserDefaults.standard

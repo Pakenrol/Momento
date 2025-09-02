@@ -16,190 +16,196 @@ targets:
   "test": ["<CoreMLVSRCLI-arm64-apple-macosx16.0-release.module>","<Diagnostics-arm64-apple-macosx16.0-release.exe>","<Diagnostics-arm64-apple-macosx16.0-release.module>","<Momento-arm64-apple-macosx16.0-release.exe>","<Momento-arm64-apple-macosx16.0-release.module>","<RBVGuard-arm64-apple-macosx16.0-release.exe>","<RBVGuard-arm64-apple-macosx16.0-release.module>","<coreml-vsr-cli-arm64-apple-macosx16.0-release.exe>"]
 default: "main"
 nodes:
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/":
+  "/Users/pakenrol/Documents/Coding/Momento/":
     is-directory-structure: true
     content-exclusion-patterns: [".git",".build"]
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/Diagnostics/":
+  "/Users/pakenrol/Documents/Coding/Momento/Tools/Diagnostics/":
     is-directory-structure: true
     content-exclusion-patterns: [".git",".build"]
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/RBVGuard/":
+  "/Users/pakenrol/Documents/Coding/Momento/Tools/RBVGuard/":
     is-directory-structure: true
     content-exclusion-patterns: [".git",".build"]
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/coreml-vsr-cli/":
+  "/Users/pakenrol/Documents/Coding/Momento/Tools/coreml-vsr-cli/":
     is-directory-structure: true
     content-exclusion-patterns: [".git",".build"]
 commands:
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources":
     tool: write-auxiliary-file
-    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/coreml-vsr-cli/main.swift"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources"
+    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/Momento/Tools/coreml-vsr-cli/main.swift"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/sources":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/sources":
     tool: write-auxiliary-file
-    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/Diagnostics/main.swift"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/sources"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/sources"
+    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/Momento/Tools/Diagnostics/main.swift"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/sources"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/sources"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList":
     tool: write-auxiliary-file
-    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList"
+    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/sources":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/sources":
     tool: write-auxiliary-file
-    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/AppEntry.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/AppUI.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/DerivedSources/resource_bundle_accessor.swift"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/sources"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/sources"
+    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/Momento/AppEntry.swift","/Users/pakenrol/Documents/Coding/Momento/AppUI.swift","/Users/pakenrol/Documents/Coding/Momento/Updates.swift","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/DerivedSources/resource_bundle_accessor.swift"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/sources"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/sources"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList":
     tool: write-auxiliary-file
-    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList"
+    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/Updates.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento_Momento.bundle/FastDVDnet.mlpackage":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/FastDVDnet.mlpackage":
     tool: copy-tool
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/FastDVDnet.mlpackage/"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento_Momento.bundle/FastDVDnet.mlpackage/"]
-    description: "Copying /Users/pakenrol/Documents/Coding/MaccyScaler/FastDVDnet.mlpackage"
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/FastDVDnet.mlpackage/"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/FastDVDnet.mlpackage/"]
+    description: "Copying /Users/pakenrol/Documents/Coding/Momento/FastDVDnet.mlpackage"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento_Momento.bundle/RealBasicVSR_x2.mlpackage":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/Info.plist":
     tool: copy-tool
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/RealBasicVSR_x2.mlpackage/"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento_Momento.bundle/RealBasicVSR_x2.mlpackage/"]
-    description: "Copying /Users/pakenrol/Documents/Coding/MaccyScaler/RealBasicVSR_x2.mlpackage"
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/Info.plist"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/Info.plist"]
+    description: "Copying /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/Info.plist"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/sources":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/RealBasicVSR_x2.mlpackage":
+    tool: copy-tool
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/RealBasicVSR_x2.mlpackage/"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/RealBasicVSR_x2.mlpackage/"]
+    description: "Copying /Users/pakenrol/Documents/Coding/Momento/RealBasicVSR_x2.mlpackage"
+
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/sources":
     tool: write-auxiliary-file
-    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/RBVGuard/main.swift"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/sources"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/sources"
+    inputs: ["<sources-file-list>","/Users/pakenrol/Documents/Coding/Momento/Tools/RBVGuard/main.swift"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/sources"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/sources"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList":
     tool: write-auxiliary-file
-    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList"
+    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList":
     tool: write-auxiliary-file
-    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList"]
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList"
+    inputs: ["<link-file-list>","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList"
 
-  "/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt":
+  "/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt":
     tool: write-auxiliary-file
     inputs: ["<swift-get-version>","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"]
     always-out-of-date: "true"
-    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
+    description: "Write auxiliary file /Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt"
 
   "<CoreMLVSRCLI-arm64-apple-macosx16.0-release.module>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/CoreMLVSRCLI.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/CoreMLVSRCLI.swiftmodule"]
     outputs: ["<CoreMLVSRCLI-arm64-apple-macosx16.0-release.module>"]
 
   "<Diagnostics-arm64-apple-macosx16.0-release.exe>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics"]
     outputs: ["<Diagnostics-arm64-apple-macosx16.0-release.exe>"]
 
   "<Diagnostics-arm64-apple-macosx16.0-release.module>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/Diagnostics.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/Diagnostics.swiftmodule"]
     outputs: ["<Diagnostics-arm64-apple-macosx16.0-release.module>"]
 
   "<Momento-arm64-apple-macosx16.0-release.exe>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento"]
     outputs: ["<Momento-arm64-apple-macosx16.0-release.exe>"]
 
   "<Momento-arm64-apple-macosx16.0-release.module>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/Momento.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/Updates.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/Momento.swiftmodule"]
     outputs: ["<Momento-arm64-apple-macosx16.0-release.module>"]
 
   "<RBVGuard-arm64-apple-macosx16.0-release.exe>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard"]
     outputs: ["<RBVGuard-arm64-apple-macosx16.0-release.exe>"]
 
   "<RBVGuard-arm64-apple-macosx16.0-release.module>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/RBVGuard.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/RBVGuard.swiftmodule"]
     outputs: ["<RBVGuard-arm64-apple-macosx16.0-release.module>"]
 
   "<coreml-vsr-cli-arm64-apple-macosx16.0-release.exe>":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli"]
     outputs: ["<coreml-vsr-cli-arm64-apple-macosx16.0-release.exe>"]
 
   "C.CoreMLVSRCLI-arm64-apple-macosx16.0-release.module":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/coreml-vsr-cli/main.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/CoreMLVSRCLI.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/Tools/coreml-vsr-cli/main.swift","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/CoreMLVSRCLI.swiftmodule"]
     description: "Compiling Swift Module 'CoreMLVSRCLI' (1 sources)"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","CoreMLVSRCLI","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/CoreMLVSRCLI.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources","-I","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","CoreMLVSRCLI_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","maccyscaler"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","CoreMLVSRCLI","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/CoreMLVSRCLI.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/sources","-I","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","CoreMLVSRCLI_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","momento"]
 
   "C.Diagnostics-arm64-apple-macosx16.0-release.exe":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics"]
     description: "Linking ./.build/arm64-apple-macosx/release/Diagnostics"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics","-module-name","Diagnostics","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_Diagnostics_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics","-module-name","Diagnostics","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_Diagnostics_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
 
   "C.Diagnostics-arm64-apple-macosx16.0-release.module":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/Diagnostics/main.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/sources"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/Diagnostics.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/Tools/Diagnostics/main.swift","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/sources"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/Diagnostics.swiftmodule"]
     description: "Compiling Swift Module 'Diagnostics' (1 sources)"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","Diagnostics","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/Diagnostics.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Diagnostics.build/sources","-I","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","Diagnostics_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","maccyscaler"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","Diagnostics","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/Diagnostics.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Diagnostics.build/sources","-I","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","Diagnostics_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","momento"]
 
   "C.Momento-arm64-apple-macosx16.0-release.exe":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/Updates.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento"]
     description: "Linking ./.build/arm64-apple-macosx/release/Momento"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento","-module-name","Momento","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_Momento_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento","-module-name","Momento","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_Momento_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
 
   "C.Momento-arm64-apple-macosx16.0-release.module":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/AppEntry.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/AppUI.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/DerivedSources/resource_bundle_accessor.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","<Momento-arm64-apple-macosx16.0-release.module-resources>","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/sources"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/Momento.swiftmodule"]
-    description: "Compiling Swift Module 'Momento' (3 sources)"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","Momento","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/Momento.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento.build/sources","-I","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","Momento_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","maccyscaler"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/AppEntry.swift","/Users/pakenrol/Documents/Coding/Momento/AppUI.swift","/Users/pakenrol/Documents/Coding/Momento/Updates.swift","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/DerivedSources/resource_bundle_accessor.swift","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","<Momento-arm64-apple-macosx16.0-release.module-resources>","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/sources"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppEntry.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/AppUI.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/Updates.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/resource_bundle_accessor.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/Momento.swiftmodule"]
+    description: "Compiling Swift Module 'Momento' (4 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","Momento","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/Momento.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento.build/sources","-I","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","Momento_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","momento"]
 
   "C.RBVGuard-arm64-apple-macosx16.0-release.exe":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard"]
     description: "Linking ./.build/arm64-apple-macosx/release/RBVGuard"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard","-module-name","RBVGuard","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_RBVGuard_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard","-module-name","RBVGuard","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_RBVGuard_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
 
   "C.RBVGuard-arm64-apple-macosx16.0-release.module":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/RBVGuard/main.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/sources"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/RBVGuard.swiftmodule"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/Tools/RBVGuard/main.swift","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/swift-version--58304C5D6DBC2206.txt","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/sources"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/RBVGuard.swiftmodule"]
     description: "Compiling Swift Module 'RBVGuard' (1 sources)"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","RBVGuard","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules/RBVGuard.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/RBVGuard.build/sources","-I","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","RBVGuard_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","maccyscaler"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","RBVGuard","-emit-dependencies","-emit-module","-emit-module-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules/RBVGuard.swiftmodule","-output-file-map","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/output-file-map.json","-whole-module-optimization","-num-threads","12","-c","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/RBVGuard.build/sources","-I","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Modules","-target","arm64-apple-macosx13.0","-O","-j12","-DSWIFT_PACKAGE","-module-cache-path","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","RBVGuard_main","-swift-version","5","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","momento"]
 
   "C.coreml-vsr-cli-arm64-apple-macosx16.0-release.exe":
     tool: shell
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList"]
-    outputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/CoreMLVSRCLI.build/main.swift.o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList"]
+    outputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli"]
     description: "Linking ./.build/arm64-apple-macosx/release/coreml-vsr-cli"
-    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli","-module-name","coreml_vsr_cli","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_CoreMLVSRCLI_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release","-o","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli","-module-name","coreml_vsr_cli","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-dead_strip","-Xlinker","-alias","-Xlinker","_CoreMLVSRCLI_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/coreml-vsr-cli.product/Objects.LinkFileList","-target","arm64-apple-macosx13.0","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
 
   "Momento-arm64-apple-macosx16.0-release.module-resources":
     tool: phony
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento_Momento.bundle/FastDVDnet.mlpackage/","/Users/pakenrol/Documents/Coding/MaccyScaler/.build/arm64-apple-macosx/release/Momento_Momento.bundle/RealBasicVSR_x2.mlpackage/"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/FastDVDnet.mlpackage/","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/RealBasicVSR_x2.mlpackage/","/Users/pakenrol/Documents/Coding/Momento/.build/arm64-apple-macosx/release/Momento_Momento.bundle/Info.plist"]
     outputs: ["<Momento-arm64-apple-macosx16.0-release.module-resources>"]
 
   "PackageStructure":
     tool: package-structure-tool
-    inputs: ["/Users/pakenrol/Documents/Coding/MaccyScaler/","/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/Diagnostics/","/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/RBVGuard/","/Users/pakenrol/Documents/Coding/MaccyScaler/Tools/coreml-vsr-cli/","/Users/pakenrol/Documents/Coding/MaccyScaler/Package.swift","/Users/pakenrol/Documents/Coding/MaccyScaler/Package.resolved"]
+    inputs: ["/Users/pakenrol/Documents/Coding/Momento/","/Users/pakenrol/Documents/Coding/Momento/Tools/Diagnostics/","/Users/pakenrol/Documents/Coding/Momento/Tools/RBVGuard/","/Users/pakenrol/Documents/Coding/Momento/Tools/coreml-vsr-cli/","/Users/pakenrol/Documents/Coding/Momento/Package.swift","/Users/pakenrol/Documents/Coding/Momento/Package.resolved"]
     outputs: ["<PackageStructure>"]
     description: "Planning build"
     allow-missing-inputs: true

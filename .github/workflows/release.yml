@@ -1,0 +1,96 @@
+name: build-and-release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        run: |
+          xcodebuild -version
+
+      - name: Build and package
+        env:
+          PACKAGE_ONLY: '1'
+          MAKE_DMG: '1'
+          # Optionally set Sparkle feed / key for Info.plist
+          SPARKLE_FEED_URL: ${{ secrets.SPARKLE_FEED_URL }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
+          # Optional signing identity if you import a certificate
+          CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
+        run: |
+          ./scripts/package_app.sh
+
+      - name: Generate appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          APPCAST_DOWNLOAD_BASE: ${{ secrets.APPCAST_DOWNLOAD_BASE }}
+        run: |
+          bash ./scripts/generate_appcast.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Momento-macos
+          path: |
+            dist/Momento.app
+            dist/*.dmg
+            docs/appcast.xml
+          if-no-files-found: warn
+
+  # Optional: create a GitHub Release from the tag and attach the DMG
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Momento-macos
+          path: dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.dmg
+            dist/appcast.xml
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  pages:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Momento-macos
+          path: dist
+      - name: Prepare docs
+        run: |
+          mkdir -p docs
+          # Copy generated appcast
+          if [[ -f docs/appcast.xml ]]; then cp docs/appcast.xml dist/appcast.xml; fi
+          if [[ -f dist/appcast.xml ]]; then cp dist/appcast.xml docs/appcast.xml; fi
+          # Publish DMG to Pages to match appcast URLs if needed
+          if compgen -G "dist/*.dmg" > /dev/null; then cp dist/*.dmg docs/; fi
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

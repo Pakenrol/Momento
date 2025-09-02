@@ -27,3 +27,20 @@ test_output.mp4
 final_test_frame.png
 test_final_frame.png
 test_video.mp4
+
+# Python virtual envs
+venv/
+venv_coreml/
+
+# Large model artifacts (prefer release assets or LFS)
+*.pt
+*.pth
+*.onnx
+*.mlpackage/
+models/
+external_models/
+converted_models/
+FastDVDnet_final.pt
+RealBasicVSR_final.pt
+realbasicvsr_traced.pt
+fastdvdnet_traced.pt
