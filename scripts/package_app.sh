@@ -95,12 +95,14 @@ echo "[4/5] Copying binary..."
 cp -f "$BIN_PATH" "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_DIR/Contents/MacOS/$APP_NAME"
 
-# Build and copy CLI helper into the app bundle for headless pipeline
+# Build and copy CLI helper into Resources (not MacOS to avoid second Dock icon)
 CLI_BIN=".build/release/coreml-vsr-cli"
 if [[ -x "$CLI_BIN" ]]; then
-  echo "Copying coreml-vsr-cli into app bundle..."
-  cp -f "$CLI_BIN" "$APP_DIR/Contents/MacOS/coreml-vsr-cli"
-  chmod +x "$APP_DIR/Contents/MacOS/coreml-vsr-cli"
+  echo "Copying coreml-vsr-cli into app Resources..."
+  cp -f "$CLI_BIN" "$APP_DIR/Contents/Resources/coreml-vsr-cli"
+  chmod +x "$APP_DIR/Contents/Resources/coreml-vsr-cli"
+  # Clean any accidental old copy under MacOS
+  rm -f "$APP_DIR/Contents/MacOS/coreml-vsr-cli" || true
 else
   echo "Warning: coreml-vsr-cli not found at $CLI_BIN"
 fi

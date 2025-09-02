@@ -91,18 +91,20 @@ func imageToArrayRGB(_ rep: NSBitmapImageRep) -> (MLMultiArray, Int, Int)? {
 
     let arr = try! MLMultiArray(shape: [1, 3, NSNumber(value: height), NSNumber(value: width)], dataType: .float32)
     let countHW = height * width
+    let out = arr.dataPointer.bindMemory(to: Float32.self, capacity: 3*countHW)
+    let rBase = 0
+    let gBase = countHW
+    let bBase = 2*countHW
+    let inv255: Float32 = 1.0/255.0
     for y in 0..<height {
         let rowStart = y * bytesPerRow
+        let dstRowBase = y * width
         for x in 0..<width {
             let p = rowStart + x * 4
-            // Buffer is RGBA8 (premultiplied), ignore alpha
-            let r = Float(ptr[p + 0]) / 255.0
-            let g = Float(ptr[p + 1]) / 255.0
-            let b = Float(ptr[p + 2]) / 255.0
-            let base = y * width + x
-            arr[base] = NSNumber(value: r)
-            arr[countHW + base] = NSNumber(value: g)
-            arr[2*countHW + base] = NSNumber(value: b)
+            let idx = dstRowBase + x
+            out[rBase + idx] = Float32(ptr[p + 0]) * inv255
+            out[gBase + idx] = Float32(ptr[p + 1]) * inv255
+            out[bBase + idx] = Float32(ptr[p + 2]) * inv255
         }
     }
     return (arr, width, height)
@@ -279,6 +281,7 @@ func main() throws {
         }
     }
 
+    var rbvHealthy: Bool? = nil
     for i in 0..<n {
         // Build 5-frame input window
         let widx = [i-2,i-1,i,i+1,i+2].map { clamp($0, 0, n-1) }
@@ -286,13 +289,15 @@ func main() throws {
         guard reps.count == 5 else { continue }
         let h = reps[0].pixelsHigh, w = reps[0].pixelsWide
         let arr = try MLMultiArray(shape: [1,15,NSNumber(value: h), NSNumber(value: w)], dataType: .float32)
+        let dst = arr.dataPointer.bindMemory(to: Float32.self, capacity: 15*h*w)
         for (k,rep) in reps.enumerated() {
             guard let (a,_,_) = imageToArrayRGB(rep) else { continue }
+            let src = a.dataPointer.bindMemory(to: Float32.self, capacity: 3*h*w)
             let count = h*w
             for c in 0..<3 {
                 let dstBase = (k*3 + c) * count
-                let srcBase = c*count
-                for t in 0..<count { arr[dstBase + t] = a[srcBase + t] }
+                let srcBase = c * count
+                (dst + dstBase).assign(from: src + srcBase, count: count)
             }
         }
         // FastDVDnet -> y [1,3,H,W]
@@ -312,8 +317,11 @@ func main() throws {
             let arrIn = applyNorm(den, mode: rbvNormMode, bgr: rbvBGRSwap) ?? den
             let inp = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: arrIn)])
             if let out = try? rbv.prediction(from: inp), let up = out.featureValue(for: "var_867")?.multiArrayValue {
-                let st = statsColor(up)
-                if st.std >= 0.005 || st.colorFrac >= 0.01 {
+                if rbvHealthy == nil {
+                    let st = statsColor(up)
+                    rbvHealthy = (st.std >= 0.005 || st.colorFrac >= 0.01)
+                }
+                if rbvHealthy == true {
                     if let img = arrayToImage(up, width: w*2, height: h*2) {
                         savePNG(img, to: upscaledDir.appendingPathComponent(frameFiles[i].lastPathComponent))
                         saved = true
