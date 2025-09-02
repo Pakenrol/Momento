@@ -5,7 +5,9 @@ set -euo pipefail
 
 APP_NAME="Momento"
 BUNDLE_ID="com.pakenrol.momento"
+# Semantic version shown to users (keep stable), build auto-increments to bust caches
 VERSION="0.1.0"
+BUILD_NUMBER="$(date +%s)"
 OUT_DIR="dist"
 APP_DIR="$OUT_DIR/$APP_NAME.app"
 
@@ -28,18 +30,9 @@ mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 # Build AppIcon.icns from a source image
 ICON_NAME="AppIcon.icns"
 ICON_PATH="$APP_DIR/Contents/Resources/$ICON_NAME"
+# Icon source is fixed to branding/AppIconSource.png unless overridden via ICON_SRC env var
 ICON_SRC_REPO="branding/AppIconSource.png"
-
-# Prefer the latest PNG from Downloads; also snapshot it into the repo (branding/AppIconSource.png)
-LATEST_PNG=$(find "$HOME/Downloads" -type f -iname "*.png" -print0 2>/dev/null | xargs -0 ls -t1 2>/dev/null | head -n 1 || true)
-SRC_ICON=""
-if [[ -n "$LATEST_PNG" && -f "$LATEST_PNG" ]]; then
-  mkdir -p "branding"
-  cp -f "$LATEST_PNG" "$ICON_SRC_REPO" || true
-  SRC_ICON="$ICON_SRC_REPO"
-elif [[ -f "$ICON_SRC_REPO" ]]; then
-  SRC_ICON="$ICON_SRC_REPO"
-fi
+SRC_ICON="${ICON_SRC:-$ICON_SRC_REPO}"
 
 if [[ -n "$SRC_ICON" && -f "$SRC_ICON" ]]; then
   echo "Creating app icon from: $SRC_ICON"
@@ -79,8 +72,10 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>APPL</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
+  <key>CFBundleIconName</key>
+  <string>AppIcon</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>$BUILD_NUMBER</string>
   <key>CFBundleShortVersionString</key>
   <string>$VERSION</string>
   <key>LSMinimumSystemVersion</key>
