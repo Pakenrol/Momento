@@ -449,17 +449,14 @@ struct ContentView: View {
             p.launchPath = packagedCLI.path
             p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
             p.currentDirectoryPath = (Bundle.main.resourceURL ?? Bundle.main.bundleURL).path
-            appendStdout("[CLI] Использую встроенный coreml-vsr-cli из бандла")
         } else if fm.isExecutableFile(atPath: devBuiltCLI.path) {
             p.launchPath = devBuiltCLI.path
             p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
             p.currentDirectoryPath = projectRootDir.path
-            appendStdout("[CLI] Использую dev-бинарник coreml-vsr-cli (.build/release)")
         } else if fm.fileExists(atPath: cliSourceDir.path) {
             p.launchPath = "/usr/bin/swift"
             p.arguments = ["run", "--package-path", cliSourceDir.path, "coreml-vsr-cli", "--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
             p.currentDirectoryPath = projectRootDir.path
-            appendStdout("[CLI] swift run coreml-vsr-cli (медленнее)")
         } else {
             appendStderr("[CLI] coreml-vsr-cli не найден; fallback на встроенный CoreML пайплайн")
             extractFramesAndProcessCoreML(input: input, output: output)
@@ -492,16 +489,16 @@ struct ContentView: View {
         do {
             try p.run()
             isProcessing = true
-            progress = "🚀 Обработка кадров (Core ML)"
+            // Don't print a dedicated Core ML stage label
             // Start polling tempDir to estimate progress by counting upscaled frames only
             let fpsGuess = max(1.0, self.getVideoFPS(url: input))
             let dur = max(0.001, self.getVideoDuration(url: input))
             var expected = max(1, Int((fpsGuess * dur).rounded()))
             self.totalFramesCount = expected
             self.processedFramesCount = 0
-            self.currentStep = "Обработка кадров (Core ML)"
-            self.currentStepIndex = 1
-            self.totalSteps = 1
+            self.currentStep = ""
+            self.currentStepIndex = 0
+            self.totalSteps = 0
             self.progressPollTimer?.invalidate()
             self.progressPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
                 let fm = FileManager.default
