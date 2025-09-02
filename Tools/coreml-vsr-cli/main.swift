@@ -6,6 +6,9 @@ import AppKit
 // Simple CLI to run CoreML FastDVDnet denoising (5-frame window) then x2 SR.
 // If RealBasicVSR_x2.mlmodelc is present and accepts single-frame input, use it.
 
+// Reuse a single CIContext to avoid expensive per-frame creation
+let gCIContext = CIContext()
+
 struct Args {
     var inputVideo: String = ""
     var modelsDir: String = ""
@@ -63,23 +66,27 @@ func run(_ launchPath: String, _ arguments: [String]) throws {
 
 func loadImage(_ url: URL) -> NSBitmapImageRep? {
     guard let img = NSImage(contentsOf: url) else { return nil }
-    var rect = NSRect(origin: .zero, size: img.size)
-    return img.representations.compactMap { $0 as? NSBitmapImageRep }.first ?? NSBitmapImageRep(data: img.tiffRepresentation!)
+    return img.representations.compactMap { $0 as? NSBitmapImageRep }.first
 }
 
 func imageToArrayRGB(_ rep: NSBitmapImageRep) -> (MLMultiArray, Int, Int)? {
-    // Robust RGBA8 decode with correct row stride handling
+    // Fast path: use existing CGImage; fallback to CI conversion once
     let width = rep.pixelsWide
     let height = rep.pixelsHigh
-    guard let tiff = rep.representation(using: .png, properties: [:]) ?? rep.tiffRepresentation else { return nil }
-    guard let srcImage = CIImage(data: tiff) else { return nil }
     let colorSpace = CGColorSpaceCreateDeviceRGB()
-    let ctx = CIContext()
-    // Render into an RGBA8 buffer we control to guarantee bytesPerRow
-    let outRect = CGRect(x: 0, y: 0, width: width, height: height)
-    guard let cgRendered = ctx.createCGImage(srcImage, from: outRect, format: .RGBA8, colorSpace: colorSpace) else { return nil }
-    let bytesPerRow = cgRendered.bytesPerRow
-    guard let provider = cgRendered.dataProvider, let cfdata = provider.data else { return nil }
+    var cgImg: CGImage? = nil
+    if #available(macOS 10.15, *) {
+        cgImg = rep.cgImage
+    }
+    if cgImg == nil {
+        // Fallback: render into RGBA8 once via global CIContext (avoid PNG/TIFF re-encode)
+        guard let tiff = rep.tiffRepresentation, let ci = CIImage(data: tiff) else { return nil }
+        let rect = CGRect(x: 0, y: 0, width: width, height: height)
+        cgImg = gCIContext.createCGImage(ci, from: rect, format: .RGBA8, colorSpace: colorSpace)
+    }
+    guard let cg = cgImg else { return nil }
+    let bytesPerRow = cg.bytesPerRow
+    guard let provider = cg.dataProvider, let cfdata = provider.data else { return nil }
     let ptr = CFDataGetBytePtr(cfdata)!
 
     let arr = try! MLMultiArray(shape: [1, 3, NSNumber(value: height), NSNumber(value: width)], dataType: .float32)
@@ -211,45 +218,14 @@ func main() throws {
     let fastModel = try loadModel(fastURL)
     let rbvModel = try rbvURL.map(loadModel)
 
-    // 3) Denoise via FastDVDnet (5-frame window), save center frame
+    // 3) Process frames streaming: FastDVDnet (5-frame window) -> RBV x2 -> save only upscaled
     let frameFiles = (try fm.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil)).sorted { $0.lastPathComponent < $1.lastPathComponent }
     let n = frameFiles.count
     func clamp(_ i: Int, _ lo: Int, _ hi: Int) -> Int { max(lo, min(hi, i)) }
 
-    for i in 0..<n {
-        let widx = [i-2,i-1,i,i+1,i+2].map { clamp($0, 0, n-1) }
-        let imgs: [NSBitmapImageRep] = widx.compactMap { loadImage(frameFiles[$0]) }
-        guard imgs.count == 5 else { continue }
-        // stack as [1,15,H,W]
-        let h = imgs[0].pixelsHigh, w = imgs[0].pixelsWide
-        let arr = try MLMultiArray(shape: [1,15,NSNumber(value: h), NSNumber(value: w)], dataType: .float32)
-        for (k,rep) in imgs.enumerated() {
-            guard let (a,_,_) = imageToArrayRGB(rep) else { continue }
-            let count = h*w
-            // copy into arr channel block at k*3
-            for c in 0..<3 {
-                let dstBase = (k*3 + c) * count
-                let srcBase = c*count
-                for t in 0..<count { arr[dstBase + t] = a[srcBase + t] }
-            }
-        }
-        if let fastModel = fastModel as MLModel? {
-            let input = try MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: arr)])
-            if let out = try? fastModel.prediction(from: input), let y = out.featureValue(for: "var_979")?.multiArrayValue {
-                if let img = arrayToImage(y, width: w, height: h) {
-                    savePNG(img, to: denoiseDir.appendingPathComponent(frameFiles[i].lastPathComponent))
-                }
-                continue
-            }
-        }
-        // fallback: copy center frame
-        try? fm.copyItem(at: frameFiles[i], to: denoiseDir.appendingPathComponent(frameFiles[i].lastPathComponent))
-    }
-
-    // 4) SR x2: try RBV single-frame with simple calibration, else use Core Image upscale fallback
+    // 4) SR x2 (calibrate once on first denoised), streaming write to upscaled
     var rbvNormMode: Int = 0 // 0=[0..1], 1=[-1..1], 2=x255, 3=(x*255-127.5)/127.5
     var rbvBGRSwap: Bool = false
-    let upList = (try fm.contentsOfDirectory(at: denoiseDir, includingPropertiesForKeys: nil)).sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
 
     func applyNorm(_ a: MLMultiArray, mode: Int, bgr: Bool) -> MLMultiArray? {
         // a is [1,3,H,W], already [0..1]
@@ -278,14 +254,19 @@ func main() throws {
         return out
     }
 
-    if let rbv = rbvModel, let first = upList.first, let rep = loadImage(first), let (baseArr, w, h) = imageToArrayRGB(rep) {
+    // Helper to calibrate RBV on a sample array [1,3,H,W] in [0..1]
+    func calibrateRBV(on baseArr: MLMultiArray) {
+        guard let rbv = rbvModel else { return }
+        // infer width/height
+        let shape = baseArr.shape.map{ $0.intValue }
+        let h = shape[2], w = shape[3]
         // Probe several norms/BGR and pick best by std+color fraction
         var best: (score: Double, mode: Int, bgr: Bool) = (-1, 0, false)
         for mode in 0...3 {
             for bgr in [false, true] {
                 guard let aa = applyNorm(baseArr, mode: mode, bgr: bgr) else { continue }
-                let input = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: aa)])
-                if let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "var_867")?.multiArrayValue {
+                if let input = try? MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: aa)]),
+                   let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "var_867")?.multiArrayValue {
                     let st = statsColor(y)
                     let score = st.std + st.colorFrac
                     if score > best.score { best = (score, mode, bgr) }
@@ -298,30 +279,57 @@ func main() throws {
         }
     }
 
-    for url in upList {
-        guard let rep = loadImage(url), let (srcArr, w, h) = imageToArrayRGB(rep) else { continue }
+    for i in 0..<n {
+        // Build 5-frame input window
+        let widx = [i-2,i-1,i,i+1,i+2].map { clamp($0, 0, n-1) }
+        let reps: [NSBitmapImageRep] = widx.compactMap { loadImage(frameFiles[$0]) }
+        guard reps.count == 5 else { continue }
+        let h = reps[0].pixelsHigh, w = reps[0].pixelsWide
+        let arr = try MLMultiArray(shape: [1,15,NSNumber(value: h), NSNumber(value: w)], dataType: .float32)
+        for (k,rep) in reps.enumerated() {
+            guard let (a,_,_) = imageToArrayRGB(rep) else { continue }
+            let count = h*w
+            for c in 0..<3 {
+                let dstBase = (k*3 + c) * count
+                let srcBase = c*count
+                for t in 0..<count { arr[dstBase + t] = a[srcBase + t] }
+            }
+        }
+        // FastDVDnet -> y [1,3,H,W]
+        var y: MLMultiArray? = nil
+        if let fm = fastModel as MLModel? {
+            let input = try MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: arr)])
+            if let out = try? fm.prediction(from: input) { y = out.featureValue(for: "var_979")?.multiArrayValue }
+        }
+        // Fallback y: use center frame as-is
+        if y == nil, let (a,_,_) = imageToArrayRGB(reps[2]) { y = a }
+        guard let den = y else { continue }
+        // Calibrate RBV on first usable frame
+        if i == 0 { calibrateRBV(on: den) }
+        // RBV upscale or CI fallback
         var saved = false
         if let rbv = rbvModel {
-            let arr = applyNorm(srcArr, mode: rbvNormMode, bgr: rbvBGRSwap) ?? srcArr
-            let input = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: arr)])
-            if let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "var_867")?.multiArrayValue {
-                // Guard against near-black output
-                let st = statsColor(y)
-                if st.std < 0.005 && st.colorFrac < 0.01 {
-                    // fall back to CI upscale
-                } else if let img = arrayToImage(y, width: w*2, height: h*2) {
-                    savePNG(img, to: upscaledDir.appendingPathComponent(url.lastPathComponent))
-                    saved = true
+            let arrIn = applyNorm(den, mode: rbvNormMode, bgr: rbvBGRSwap) ?? den
+            let inp = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: arrIn)])
+            if let out = try? rbv.prediction(from: inp), let up = out.featureValue(for: "var_867")?.multiArrayValue {
+                let st = statsColor(up)
+                if st.std >= 0.005 || st.colorFrac >= 0.01 {
+                    if let img = arrayToImage(up, width: w*2, height: h*2) {
+                        savePNG(img, to: upscaledDir.appendingPathComponent(frameFiles[i].lastPathComponent))
+                        saved = true
+                    }
                 }
             }
         }
         if !saved {
-            // CI upscale x2 fallback
-            let ci = CIImage(contentsOf: url)!; let scale = CGAffineTransform(scaleX: 2, y: 2)
-            let out = ci.transformed(by: scale)
-            let ctx = CIContext(); let cg = ctx.createCGImage(out, from: out.extent)!
-            let img = NSImage(cgImage: cg, size: NSSize(width: w*2, height: h*2))
-            savePNG(img, to: upscaledDir.appendingPathComponent(url.lastPathComponent))
+            // Bicubic fallback from denoised center
+            if let img = arrayToImage(den, width: w, height: h) {
+                let ci = CIImage(data: img.tiffRepresentation!)!; let scale = CGAffineTransform(scaleX: 2, y: 2)
+                let out = ci.transformed(by: scale)
+                let cg = gCIContext.createCGImage(out, from: out.extent)!
+                let up = NSImage(cgImage: cg, size: NSSize(width: w*2, height: h*2))
+                savePNG(up, to: upscaledDir.appendingPathComponent(frameFiles[i].lastPathComponent))
+            }
         }
     }
 

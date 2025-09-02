@@ -526,6 +526,8 @@ struct ContentView: View {
                 if let a = try? fm.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil) { nFrames = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
                 if let a = try? fm.contentsOfDirectory(at: denoiseDir, includingPropertiesForKeys: nil) { nDenoised = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
                 if let a = try? fm.contentsOfDirectory(at: upscaleDir, includingPropertiesForKeys: nil) { nUpscaled = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
+                // If streaming pipeline skips saving denoised frames, mirror progress from upscaled
+                if nDenoised == 0 && nUpscaled > 0 { nDenoised = nUpscaled }
                 // Weights per stage (extract/denoise/upscale/assemble)
                 let w1 = 0.25, w2 = 0.35, w3 = 0.35, w4 = 0.05
                 let fExp = Double(expected)
