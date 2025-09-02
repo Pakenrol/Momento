@@ -1,18 +1,38 @@
 import Foundation
 import SwiftUI
 
-// Sparkle updater integration (optional at compile time)
-// This compiles even if Sparkle is not yet added; when you add Sparkle via Xcode/SPM,
-// the Check for Updates… menu item will become functional.
+// Sparkle updater integration with graceful fallback if not present
+
+#if canImport(Sparkle)
+import Sparkle
+
+@MainActor
+final class UpdatesManager: ObservableObject {
+    let updaterController: SPUStandardUpdaterController
+
+    init() {
+        self.updaterController = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+    }
+
+    func checkForUpdates() {
+        updaterController.checkForUpdates(nil)
+    }
+}
+
+#else
 
 @MainActor
 final class UpdatesManager: ObservableObject {
     init() {}
     func checkForUpdates() {
-        // Fallback: if Sparkle isn't linked at compile-time, open Releases page
         if let url = URL(string: "https://github.com/Pakenrol/Momento/releases") {
             NSWorkspace.shared.open(url)
         }
     }
 }
 
+#endif

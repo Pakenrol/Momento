@@ -14,11 +14,14 @@ let package = Package(
         .executable(name: "RBVGuard", targets: ["RBVGuard"]) 
     ],
     dependencies: [
-        // No direct Sparkle link in SwiftPM to avoid resource duplication; Sparkle is embedded at packaging time.
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.1")
     ],
     targets: [
         .executableTarget(
             name: "Momento",
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
             path: ".",
             exclude: [
                 "dist",
