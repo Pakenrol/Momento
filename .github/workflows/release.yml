@@ -108,7 +108,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Momento-macos
-          path: dist
+          path: .
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -133,7 +133,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Momento-macos
-          path: dist
+          path: .
       - name: Prepare docs
         run: |
           mkdir -p docs
