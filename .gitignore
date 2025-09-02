@@ -16,3 +16,14 @@ FXUpscaleApp.app/
 .swiftpm/
 Package.resolved
 
+.DS_Store
+test_video.mp4
+.gitignore
+test_fixed.mp4
+.DS_Store
+test_debug.mp4
+test_final_result.mp4
+test_output.mp4
+final_test_frame.png
+test_final_frame.png
+test_video.mp4
