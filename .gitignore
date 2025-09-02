@@ -8,6 +8,8 @@ FXUpscaleApp.app/
 
 # Archives
 *.zip
+!docs/*.zip
+!docs/*.dmg
 
 # OS files
 .DS_Store
