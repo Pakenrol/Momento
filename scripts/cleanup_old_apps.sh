@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="MaccyScaler"
+APP_NAME="Momento"
 
 echo "Searching for old $APP_NAME.app bundles..."
 

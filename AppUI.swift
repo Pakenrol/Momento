@@ -56,7 +56,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 25) {
             // Заголовок
             VStack(alignment: .leading, spacing: 8) {
-                Text("MaccyScaler")
+                Text("Momento")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
@@ -310,12 +310,12 @@ struct ContentView: View {
         let repoNewLower = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/coding/maccyscaler")
         if fm.fileExists(atPath: repoNewLower.path) { return repoNewLower }
         // 3) New capitalized path
-        let repoNewCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")
+        let repoNewCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento")
         if fm.fileExists(atPath: repoNewCap.path) { return repoNewCap }
         // 4) Backward compatibility: old lowercase/uppercase paths
         let repoOldLower = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/coding/vidyscaler")
         if fm.fileExists(atPath: repoOldLower.path) { return repoOldLower }
-        let repoOldCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")
+        let repoOldCap = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento")
         if fm.fileExists(atPath: repoOldCap.path) { return repoOldCap }
         // 5) As a last resort, current working directory
         return URL(fileURLWithPath: fm.currentDirectoryPath)
@@ -375,7 +375,7 @@ struct ContentView: View {
     }
     private func extractFramesAndProcessCoreML(input: URL, output: URL) {
         // Создаем временную папку
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyScaler_\(UUID().uuidString)")
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("Momento_\(UUID().uuidString)")
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             workingTempDir = tempDir
@@ -435,36 +435,43 @@ struct ContentView: View {
 
     // MARK: - CLI Pipeline Wrapper
     private func runCLIPipeline(input: URL, output: URL) {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyScaler_CLI_\(UUID().uuidString)")
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("Momento_CLI_\(UUID().uuidString)")
         do { try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true) } catch {}
         workingTempDir = tempDir
-        
-        // Build and run CLI tool from source instead of looking in bundle
+
+        let fm = FileManager.default
         let projectRootDir = projectRoot()
-        let cliPath = projectRootDir.appendingPathComponent("Tools/coreml-vsr-cli")
-        
-        // Check if CLI source exists
-        guard FileManager.default.fileExists(atPath: cliPath.path) else {
-            print("[ERROR] CLI source not found at: \(cliPath.path)")
+
+        // Prefer embedded CLI binary inside packaged app; then dev prebuilt; then swift run; else fallback to Swift pipeline
+        let packagedCLI = Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/coreml-vsr-cli")
+        let cliSourceDir = projectRootDir.appendingPathComponent("Tools/coreml-vsr-cli")
+        let devBuiltCLI = cliSourceDir.appendingPathComponent(".build/arm64-apple-macosx/release/coreml-vsr-cli")
+
+        // Models directory: prefer app Resources for packaged app, else project root
+        let modelsDir = Bundle.main.resourceURL ?? projectRootDir
+
+        let p = Process()
+        if fm.isExecutableFile(atPath: packagedCLI.path) {
+            p.launchPath = packagedCLI.path
+            p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
+            p.currentDirectoryPath = Bundle.main.bundleURL.path
+            appendStdout("[CLI] Использую встроенный coreml-vsr-cli из бандла")
+        } else if fm.isExecutableFile(atPath: devBuiltCLI.path) {
+            p.launchPath = devBuiltCLI.path
+            p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
+            p.currentDirectoryPath = projectRootDir.path
+            appendStdout("[CLI] Использую dev-бинарник coreml-vsr-cli (.build/release)")
+        } else if fm.fileExists(atPath: cliSourceDir.path) {
+            p.launchPath = "/usr/bin/swift"
+            p.arguments = ["run", "--package-path", cliSourceDir.path, "coreml-vsr-cli", "--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
+            p.currentDirectoryPath = projectRootDir.path
+            appendStdout("[CLI] swift run coreml-vsr-cli (медленнее)")
+        } else {
+            appendStderr("[CLI] coreml-vsr-cli не найден; fallback на встроенный CoreML пайплайн")
             extractFramesAndProcessCoreML(input: input, output: output)
             return
         }
-        
-        let modelsDir = projectRootDir
-        // Use pre-compiled CLI binary for faster execution
-        let cliBinaryPath = cliPath.appendingPathComponent(".build/arm64-apple-macosx/release/coreml-vsr-cli")
-        
-        let p = Process()
-        if FileManager.default.isExecutableFile(atPath: cliBinaryPath.path) {
-            // Use pre-compiled binary if available
-            p.launchPath = cliBinaryPath.path
-            p.arguments = ["--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
-        } else {
-            // Fallback to swift run (slower)
-            p.launchPath = "/usr/bin/swift"
-            p.arguments = ["run", "--package-path", cliPath.path, "coreml-vsr-cli", "--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
-        }
-        p.currentDirectoryPath = projectRootDir.path
+
         currentProcess = p
         let out = Pipe(); let err = Pipe()
         p.standardOutput = out; p.standardError = err
@@ -484,7 +491,6 @@ struct ContentView: View {
                 err.fileHandleForReading.readabilityHandler = nil
                 // Copy first upscaled frames to Downloads for debug
                 let upDir = tempDir.appendingPathComponent("upscaled")
-                let fm = FileManager.default
                 if let files = try? fm.contentsOfDirectory(at: upDir, includingPropertiesForKeys: nil).filter({ $0.pathExtension.lowercased() == "png" }).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).prefix(3) {
                     let down = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
                     for (i,u) in files.enumerated() {
@@ -501,6 +507,39 @@ struct ContentView: View {
             try p.run()
             isProcessing = true
             progress = "🚀 CLI: извлечение → денойз → x2 → сборка"
+            // Start polling tempDir to estimate progress by counting frames
+            let fps = max(1.0, self.getVideoFPS(url: input))
+            let dur = max(0.001, self.getVideoDuration(url: input))
+            let expected = max(1, Int((fps * dur).rounded()))
+            self.totalFramesCount = expected
+            self.processedFramesCount = 0
+            self.currentStep = "Обработка через VSR (Core ML)"
+            self.currentStepIndex = 1
+            self.totalSteps = 3
+            self.progressPollTimer?.invalidate()
+            self.progressPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+                let fm = FileManager.default
+                var nFrames = 0, nDenoised = 0, nUpscaled = 0
+                let framesDir = tempDir.appendingPathComponent("frames")
+                let denoiseDir = tempDir.appendingPathComponent("denoised")
+                let upscaleDir = tempDir.appendingPathComponent("upscaled")
+                if let a = try? fm.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil) { nFrames = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
+                if let a = try? fm.contentsOfDirectory(at: denoiseDir, includingPropertiesForKeys: nil) { nDenoised = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
+                if let a = try? fm.contentsOfDirectory(at: upscaleDir, includingPropertiesForKeys: nil) { nUpscaled = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
+                // Weights per stage (extract/denoise/upscale/assemble)
+                let w1 = 0.25, w2 = 0.35, w3 = 0.35, w4 = 0.05
+                let fExp = Double(expected)
+                let p1 = min(1.0, Double(nFrames) / max(1.0, fExp))
+                let p2 = min(1.0, Double(nDenoised) / max(1.0, fExp))
+                let p3 = min(1.0, Double(nUpscaled) / max(1.0, fExp))
+                let combined = w1*p1 + w2*p2 + w3*p3 // assembly progress accounted on termination
+                DispatchQueue.main.async {
+                    self.progressValue = combined
+                    self.processedFramesCount = nUpscaled
+                    self.progress = String(format: "📊 Кадры: %d/%d · Денойз: %d/%d · x2: %d/%d", nFrames, expected, nDenoised, expected, nUpscaled, expected)
+                    self.updateETAFromFrames(processed: nUpscaled, total: expected)
+                }
+            }
         } catch {
             finishWithError("Не удалось запустить CLI: \(error.localizedDescription)")
         }
@@ -892,14 +931,14 @@ struct ContentView: View {
     private func writeImage(_ image: CIImage, to url: URL, context: CIContext, ext: String) throws {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let cgImage = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: colorSpace) else {
-            throw NSError(domain: "MaccyScaler", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось создать CGImage"])
+            throw NSError(domain: "Momento", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось создать CGImage"])
         }
         let dest = CGImageDestinationCreateWithURL(url as CFURL, (ext == "png" ? kUTTypePNG : kUTTypeJPEG) as CFString, 1, nil)!
         var props: [CFString: Any] = [:]
         if ext == "jpg" { props[kCGImageDestinationLossyCompressionQuality] = 0.95 }
         CGImageDestinationAddImage(dest, cgImage, props as CFDictionary)
         if !CGImageDestinationFinalize(dest) {
-            throw NSError(domain: "MaccyScaler", code: -2, userInfo: [NSLocalizedDescriptionKey: "Не удалось записать изображение"])
+            throw NSError(domain: "Momento", code: -2, userInfo: [NSLocalizedDescriptionKey: "Не удалось записать изображение"])
         }
     }
     // Удалены: extractFramesAndProcess + NCNN upscalers (RealESRGAN/RealCUGAN/Waifu2x)
@@ -1436,7 +1475,7 @@ extension ContentView {
         let fm = FileManager.default
         print("[DEBUG] Поиск модели: \(baseName)")
         // 1) Сразу проверяем workspace fallbacks (для development mode)
-        let candidates: [URL] = [projectRoot(), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")]
+        let candidates: [URL] = [projectRoot(), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento"), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")]
         print("[DEBUG] Проверяю кандидатов: \(candidates.map { $0.path })")
         for base in candidates {
             let pTools = base.appendingPathComponent("Tools/\(baseName).mlpackage")
@@ -1458,10 +1497,15 @@ extension ContentView {
         }
         // 3) Embedded SwiftPM bundle copied into Resources
         if let resRoot = Bundle.main.resourceURL {
-            let spmBundleURL = resRoot.appendingPathComponent("MaccyScaler_MaccyScaler.bundle")
-            if let b = Bundle(url: spmBundleURL),
+            // Try new bundle name first, then legacy
+            let spmBundleURLNew = resRoot.appendingPathComponent("Momento_Momento.bundle")
+            let spmBundleURLOld = resRoot.appendingPathComponent("MaccyScaler_MaccyScaler.bundle")
+            if let b = Bundle(url: spmBundleURLNew),
                let url = b.url(forResource: baseName, withExtension: "mlpackage"),
                fm.fileExists(atPath: url.path) {
+                return url
+            }
+            if let b = Bundle(url: spmBundleURLOld), let url = b.url(forResource: baseName, withExtension: "mlpackage"), fm.fileExists(atPath: url.path) {
                 return url
             }
             // 4) Last resort: walk Resources recursively for *.mlpackage

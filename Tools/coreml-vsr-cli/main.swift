@@ -68,59 +68,106 @@ func loadImage(_ url: URL) -> NSBitmapImageRep? {
 }
 
 func imageToArrayRGB(_ rep: NSBitmapImageRep) -> (MLMultiArray, Int, Int)? {
+    // Robust RGBA8 decode with correct row stride handling
     let width = rep.pixelsWide
     let height = rep.pixelsHigh
-    guard let data = rep.representation(using: .png, properties: [:]) ?? rep.tiffRepresentation else { return nil }
-    guard let ci = CIImage(data: data) else { return nil }
+    guard let tiff = rep.representation(using: .png, properties: [:]) ?? rep.tiffRepresentation else { return nil }
+    guard let srcImage = CIImage(data: tiff) else { return nil }
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
     let ctx = CIContext()
-    guard let cg = ctx.createCGImage(ci, from: CGRect(x: 0, y: 0, width: width, height: height)) else { return nil }
-    guard let provider = cg.dataProvider, let raw = provider.data else { return nil }
-    let ptr = CFDataGetBytePtr(raw)!
-    // Assume RGBA8
+    // Render into an RGBA8 buffer we control to guarantee bytesPerRow
+    let outRect = CGRect(x: 0, y: 0, width: width, height: height)
+    guard let cgRendered = ctx.createCGImage(srcImage, from: outRect, format: .RGBA8, colorSpace: colorSpace) else { return nil }
+    let bytesPerRow = cgRendered.bytesPerRow
+    guard let provider = cgRendered.dataProvider, let cfdata = provider.data else { return nil }
+    let ptr = CFDataGetBytePtr(cfdata)!
+
     let arr = try! MLMultiArray(shape: [1, 3, NSNumber(value: height), NSNumber(value: width)], dataType: .float32)
-    let cStride = width * 4
-    var idx = 0
+    let countHW = height * width
     for y in 0..<height {
-        let row = y * cStride
+        let rowStart = y * bytesPerRow
         for x in 0..<width {
-            let offset = row + x * 4
-            let r = Float(ptr[offset + 0]) / 255.0
-            let g = Float(ptr[offset + 1]) / 255.0
-            let b = Float(ptr[offset + 2]) / 255.0
-            // NCHW: 1,3,H,W
-            let base = y*width + x
+            let p = rowStart + x * 4
+            // Buffer is RGBA8 (premultiplied), ignore alpha
+            let r = Float(ptr[p + 0]) / 255.0
+            let g = Float(ptr[p + 1]) / 255.0
+            let b = Float(ptr[p + 2]) / 255.0
+            let base = y * width + x
             arr[base] = NSNumber(value: r)
-            arr[height*width + base] = NSNumber(value: g)
-            arr[2*height*width + base] = NSNumber(value: b)
-            idx += 1
+            arr[countHW + base] = NSNumber(value: g)
+            arr[2*countHW + base] = NSNumber(value: b)
         }
     }
     return (arr, width, height)
 }
 
 func arrayToImage(_ arr: MLMultiArray, width: Int, height: Int) -> NSImage? {
-    // Expect shape [1,3,H,W]
+    // Expect shape [1,3,H,W]. Auto-scale output range to [0,1] if needed.
     let count = width * height
     let rBase = 0
     let gBase = count
     let bBase = count * 2
+    // Probe a small grid to infer range
+    var vmin: Float = .greatestFiniteMagnitude
+    var vmax: Float = -.greatestFiniteMagnitude
+    let stepY = max(1, height/8), stepX = max(1, width/8)
+    for y in stride(from: 0, to: height, by: stepY) {
+        for x in stride(from: 0, to: width, by: stepX) {
+            let i = y*width + x
+            let r = arr[rBase + i].floatValue
+            let g = arr[gBase + i].floatValue
+            let b = arr[bBase + i].floatValue
+            vmin = min(vmin, r, g, b)
+            vmax = max(vmax, r, g, b)
+        }
+    }
+    // Heuristic scaling: handle [-1,1], [0,1], and [0,255]
+    var scale: Float = 1.0
+    var bias: Float = 0.0
+    if vmax > 2.0 { // looks like [0,255]
+        scale = 1.0/255.0; bias = 0.0
+    } else if vmin < -0.01 && vmax <= 1.5 { // looks like [-1,1]
+        scale = 0.5; bias = 0.5
+    } else { // assume [0,1]
+        scale = 1.0; bias = 0.0
+    }
     var pixels = [UInt8](repeating: 0, count: count * 4)
     for y in 0..<height {
         for x in 0..<width {
             let idx = y*width + x
-            let r = max(0, min(255, Int((arr[rBase + idx].floatValue) * 255.0)))
-            let g = max(0, min(255, Int((arr[gBase + idx].floatValue) * 255.0)))
-            let b = max(0, min(255, Int((arr[bBase + idx].floatValue) * 255.0)))
+            var r = arr[rBase + idx].floatValue * scale + bias
+            var g = arr[gBase + idx].floatValue * scale + bias
+            var b = arr[bBase + idx].floatValue * scale + bias
+            r = min(max(r, 0), 1); g = min(max(g, 0), 1); b = min(max(b, 0), 1)
             let p = idx*4
-            pixels[p+0] = UInt8(r)
-            pixels[p+1] = UInt8(g)
-            pixels[p+2] = UInt8(b)
+            pixels[p+0] = UInt8(r * 255)
+            pixels[p+1] = UInt8(g * 255)
+            pixels[p+2] = UInt8(b * 255)
             pixels[p+3] = 255
         }
     }
     let cs = CGColorSpaceCreateDeviceRGB()
     guard let ctx = CGContext(data: &pixels, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width*4, space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue), let cg = ctx.makeImage() else { return nil }
     return NSImage(cgImage: cg, size: NSSize(width: width, height: height))
+}
+
+// Simple content statistics to detect near-black outputs
+func statsColor(_ arr: MLMultiArray) -> (std: Double, colorFrac: Double) {
+    // arr is [1,3,H,W]
+    let count = arr.count/3
+    var sum: Double = 0, sum2: Double = 0
+    var colorCnt = 0
+    for i in 0..<count {
+        let r = arr[i].floatValue
+        let g = arr[count + i].floatValue
+        let b = arr[2*count + i].floatValue
+        let v = (Double(r) + Double(g) + Double(b)) / 3.0
+        sum += v; sum2 += v*v
+        if abs(r-g)+abs(r-b)+abs(g-b) > 0.02 { colorCnt += 1 }
+    }
+    let mean = sum / Double(max(count,1))
+    let varv = max(0, sum2/Double(max(count,1)) - mean*mean)
+    return (sqrt(varv), Double(colorCnt)/Double(max(count,1)))
 }
 
 func savePNG(_ img: NSImage, to url: URL) {
@@ -199,14 +246,70 @@ func main() throws {
         try? fm.copyItem(at: frameFiles[i], to: denoiseDir.appendingPathComponent(frameFiles[i].lastPathComponent))
     }
 
-    // 4) SR x2: try RBV single-frame, else use Core Image upscale fallback
-    for url in (try fm.contentsOfDirectory(at: denoiseDir, includingPropertiesForKeys: nil)).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-        guard let rep = loadImage(url), let (arr, w, h) = imageToArrayRGB(rep) else { continue }
+    // 4) SR x2: try RBV single-frame with simple calibration, else use Core Image upscale fallback
+    var rbvNormMode: Int = 0 // 0=[0..1], 1=[-1..1], 2=x255, 3=(x*255-127.5)/127.5
+    var rbvBGRSwap: Bool = false
+    let upList = (try fm.contentsOfDirectory(at: denoiseDir, includingPropertiesForKeys: nil)).sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
+
+    func applyNorm(_ a: MLMultiArray, mode: Int, bgr: Bool) -> MLMultiArray? {
+        // a is [1,3,H,W], already [0..1]
+        let shape = a.shape.map{ $0.intValue }
+        guard shape.count == 4, shape[0] == 1, shape[1] == 3 else { return nil }
+        guard let out = try? MLMultiArray(shape: a.shape, dataType: .float32) else { return nil }
+        let hw = shape[2]*shape[3]
+        for i in 0..<hw {
+            var r = a[i].floatValue
+            var g = a[hw + i].floatValue
+            var b = a[2*hw + i].floatValue
+            if bgr { swap(&r, &b) }
+            switch mode {
+            case 1: // [-1..1]
+                r = r*2 - 1; g = g*2 - 1; b = b*2 - 1
+            case 2: // x255
+                r = r*255; g = g*255; b = b*255
+            case 3: // (x*255-127.5)/127.5
+                r = (r*255 - 127.5)/127.5; g = (g*255 - 127.5)/127.5; b = (b*255 - 127.5)/127.5
+            default: break // [0..1]
+            }
+            out[i] = NSNumber(value: r)
+            out[hw + i] = NSNumber(value: g)
+            out[2*hw + i] = NSNumber(value: b)
+        }
+        return out
+    }
+
+    if let rbv = rbvModel, let first = upList.first, let rep = loadImage(first), let (baseArr, w, h) = imageToArrayRGB(rep) {
+        // Probe several norms/BGR and pick best by std+color fraction
+        var best: (score: Double, mode: Int, bgr: Bool) = (-1, 0, false)
+        for mode in 0...3 {
+            for bgr in [false, true] {
+                guard let aa = applyNorm(baseArr, mode: mode, bgr: bgr) else { continue }
+                let input = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: aa)])
+                if let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "var_867")?.multiArrayValue {
+                    let st = statsColor(y)
+                    let score = st.std + st.colorFrac
+                    if score > best.score { best = (score, mode, bgr) }
+                }
+            }
+        }
+        if best.score >= 0 {
+            rbvNormMode = best.mode; rbvBGRSwap = best.bgr
+            fputs("[coreml-vsr-cli] RBV calibration: mode=\(rbvNormMode) bgr=\(rbvBGRSwap)\n", stderr)
+        }
+    }
+
+    for url in upList {
+        guard let rep = loadImage(url), let (srcArr, w, h) = imageToArrayRGB(rep) else { continue }
         var saved = false
         if let rbv = rbvModel {
+            let arr = applyNorm(srcArr, mode: rbvNormMode, bgr: rbvBGRSwap) ?? srcArr
             let input = try MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: arr)])
             if let out = try? rbv.prediction(from: input), let y = out.featureValue(for: "var_867")?.multiArrayValue {
-                if let img = arrayToImage(y, width: w*2, height: h*2) {
+                // Guard against near-black output
+                let st = statsColor(y)
+                if st.std < 0.005 && st.colorFrac < 0.01 {
+                    // fall back to CI upscale
+                } else if let img = arrayToImage(y, width: w*2, height: h*2) {
                     savePNG(img, to: upscaledDir.appendingPathComponent(url.lastPathComponent))
                     saved = true
                 }

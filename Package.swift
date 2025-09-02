@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "MaccyScaler",
+    name: "Momento",
     platforms: [
         .macOS(.v13)
     ],
     products: [
-        .executable(name: "MaccyScaler", targets: ["MaccyScaler"]),
+        .executable(name: "Momento", targets: ["Momento"]),
         .executable(name: "coreml-vsr-cli", targets: ["CoreMLVSRCLI"]),
         .executable(name: "Diagnostics", targets: ["Diagnostics"]),
         .executable(name: "RBVGuard", targets: ["RBVGuard"]) 
     ],
     targets: [
         .executableTarget(
-            name: "MaccyScaler",
+            name: "Momento",
             path: ".",
             sources: ["AppEntry.swift", "AppUI.swift"],
             resources: [

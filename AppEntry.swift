@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct MaccyScalerApp: App {
+struct MomentoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -10,4 +10,3 @@ struct MaccyScalerApp: App {
         .windowResizability(.contentSize)
     }
 }
-

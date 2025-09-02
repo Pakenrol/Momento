@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# MaccyScaler: package into a .app, install to /Applications only, and launch
+# Momento: package into a .app, install to /Applications only, and launch
 
-APP_NAME="MaccyScaler"
-BUNDLE_ID="com.pakenrol.maccyscaler"
+APP_NAME="Momento"
+BUNDLE_ID="com.pakenrol.momento"
 VERSION="0.1.0"
 OUT_DIR="dist"
 APP_DIR="$OUT_DIR/$APP_NAME.app"
@@ -25,6 +25,28 @@ rm -rf "$APP_DIR"
 echo "[2/5] Creating bundle structure..."
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
+# Build AppIcon.icns from the latest PNG in Downloads (if present)
+LATEST_PNG=$(find "$HOME/Downloads" -type f -iname "*.png" -print0 2>/dev/null | xargs -0 ls -t1 2>/dev/null | head -n 1 || true)
+ICON_NAME="AppIcon.icns"
+ICON_PATH="$APP_DIR/Contents/Resources/$ICON_NAME"
+if [[ -n "$LATEST_PNG" && -f "$LATEST_PNG" ]]; then
+  echo "Creating app icon from: $LATEST_PNG"
+  TMP_ICONSET="dist/icon.iconset"
+  rm -rf "$TMP_ICONSET" && mkdir -p "$TMP_ICONSET"
+  # Generate required sizes
+  for size in 16 32 64 128 256 512; do
+    sips -z $size $size "$LATEST_PNG" --out "$TMP_ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1 || true
+    dbl=$((size*2))
+    sips -z $dbl $dbl "$LATEST_PNG" --out "$TMP_ICONSET/icon_${size}x${size}@2x.png" >/dev/null 2>&1 || true
+  done
+  # Build icns
+  if command -v iconutil >/dev/null 2>&1; then
+    iconutil -c icns "$TMP_ICONSET" -o "$ICON_PATH" || true
+  else
+    echo "Warning: iconutil not found; skipping icns creation"
+  fi
+fi
+
 echo "[3/5] Writing Info.plist..."
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -41,6 +63,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>CFBundleShortVersionString</key>
