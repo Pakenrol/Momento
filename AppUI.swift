@@ -6,11 +6,10 @@ import CoreImage.CIFilterBuiltins
 import CoreML
 // MARK: - Project Memory/Init
 /*
- MaccyScaler - Продвинутый видеоапскейлер для реставрации старых видео
- АКТУАЛЬНО:
- - Core ML pipeline: FastDVDnet (денойзинг) + RealBasicVSR x2 (VSR)
- - Полное удаление нативных ncnn-апскейлеров (Waifu2x/RealCUGAN/Real-ESRGAN) из приложения
- - Один режим обработки (Core ML)
+ Momento — AI video upscaler
+ Current:
+ - Core ML pipeline: FastDVDnet (denoise) + RealBasicVSR x2 (VSR)
+ - Single simplified processing mode (Core ML)
 */
 // App entry moved to AppEntry.swift
 struct ContentView: View {
@@ -54,18 +53,18 @@ struct ContentView: View {
     // FX-Upscale progress estimation
     var body: some View {
         VStack(alignment: .leading, spacing: 25) {
-            // Заголовок
+            // Header
             VStack(alignment: .leading, spacing: 8) {
                 Text("Momento")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
-                Text("FastDVDnet + RealBasicVSR | Профессиональный видео апскейлер с ИИ")
+                Text("FastDVDnet + RealBasicVSR | Professional AI Video Upscaler")
                     .font(.headline)
                     .foregroundColor(.secondary)
             }
             .padding(.horizontal)
-            // Drop зона
+            // Drop zone
             VStack {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(dragOver ? .blue : .gray.opacity(0.5), style: StrokeStyle(lineWidth: 3, dash: [10]))
@@ -88,11 +87,11 @@ struct ContentView: View {
                                     .multilineTextAlignment(.center)
                             } else {
                                 VStack(spacing: 4) {
-                                    Text("Перетащите видео сюда")
+                                    Text("Drag & drop a video here")
                                         .font(.title3)
                                         .fontWeight(.medium)
                                         .foregroundColor(.secondary)
-                                    Text("Поддерживаются: MP4, MOV, AVI, MKV")
+                                    Text("Supported: MP4, MOV, AVI, MKV")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -102,16 +101,16 @@ struct ContentView: View {
                     .onDrop(of: [.fileURL], isTargeted: $dragOver) { providers in
                         handleDrop(providers: providers)
                     }
-                // Кнопки файла
+                // File buttons
                 HStack {
-                    Button("📁 Выбрать файл") {
+                    Button("📁 Choose File") {
                         selectFile()
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     Spacer()
                     if selectedFile != nil {
-                        Button("🗑️ Очистить") {
+                        Button("🗑️ Clear") {
                             selectedFile = nil
                         }
                         .buttonStyle(.borderless)
@@ -120,14 +119,14 @@ struct ContentView: View {
                 }
             }
             .padding(.horizontal)
-            // Единый режим: Core ML (без выбора)
-            // Кнопка запуска / остановки
+            // Single mode: Core ML (no manual selection)
+            // Start/Stop button
             HStack {
                 Button(action: { isProcessing ? cancelProcessing() : startUpscaling() }) {
                     HStack(spacing: 8) {
                         Image(systemName: isProcessing ? "stop.circle" : "play.circle")
                             .font(.title2)
-                        Text(isProcessing ? "Остановить" : "🚀 Начать обработку")
+                        Text(isProcessing ? "Stop" : "🚀 Start Processing")
                             .font(.headline)
                             .fontWeight(.semibold)
                     }
@@ -139,7 +138,7 @@ struct ContentView: View {
             }
             .padding(.horizontal)
             // Diagnostics disabled for streamlined UI
-            // Прогресс обработки
+            // Processing progress
             if isProcessing || !progress.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     Divider()
@@ -150,7 +149,7 @@ struct ContentView: View {
                                 .fontWeight(.medium)
                                 .foregroundColor(.primary)
                         }
-                        // Общий прогресс (внизу) с ETA
+                        // Overall progress (with ETA)
                         if isProcessing {
                             ProgressView(value: progressValue, total: 1.0)
                                 .padding(.trailing, 8)
@@ -159,7 +158,7 @@ struct ContentView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 if !etaText.isEmpty {
-                                    Text("≈ " + etaText + " осталось")
+                                    Text("≈ " + etaText + " left")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
@@ -182,7 +181,7 @@ struct ContentView: View {
                                 .foregroundColor(.secondary)
                                 .lineLimit(3)
                         }
-                        // Логи (хвост)
+                        // Logs (tail)
                         if !stdoutTail.isEmpty {
                             Text(stdoutTail.suffix(6).joined(separator: "\n"))
                                 .font(.caption2)
@@ -202,10 +201,10 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
             Spacer()
-            // Информационная панель (фиксированная)
+            // Footer info (fixed)
             VStack(spacing: 8) {
                 Divider()
-                // Всегда вертикальное расположение для стабильности
+                // Always vertical layout for stability
                 VStack(alignment: .leading, spacing: 2) {
                     Text("💡 Core ML: FastDVDnet + RealBasicVSR x2")
                         .font(.caption)
@@ -213,7 +212,7 @@ struct ContentView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .layoutPriority(1)
-                    Text("🍎 Оптимизировано для Apple Silicon")
+                    Text("🍎 Optimized for Apple Silicon")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
@@ -233,7 +232,7 @@ struct ContentView: View {
         panel.allowedContentTypes = [.mpeg4Movie, .quickTimeMovie, .movie]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.title = "Выберите видеофайл для обработки"
+        panel.title = "Choose a video to process"
         if panel.runModal() == .OK {
             selectedFile = panel.url
         }
@@ -259,7 +258,7 @@ struct ContentView: View {
         guard let inputURL = selectedFile else { return }
         isProcessing = true
         startTime = Date()
-        progress = "🔄 Инициализация обработки..."
+        progress = "🔄 Initializing..."
         currentStepIndex = 1
         progressValue = 0
         etaText = ""
@@ -271,21 +270,21 @@ struct ContentView: View {
         lastRateSampleFrames = 0
         lastUIUpdateTime = nil
         cancelRequested = false
-        // Core ML: всегда используем PNG для качества
+        // Core ML: always PNG for quality
         frameExtension = "png"
-        // Извлечение + апскейл + сборка (без RIFE)
+        // Extract + upscale + assemble (no RIFE)
         totalSteps = 3
-        // Запускаем таймер для обновления времени
+        // Start timer for elapsed time updates
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             updateProgress()
         }
-        // Получаем размеры и делаем x2 апскейлинг (соответствует алгоритмам)
+        // Read size and set x2 target (pipeline behavior)
         let originalSize = getVideoSize(url: inputURL)
         let targetWidth = originalSize.width * 2
         let targetHeight = originalSize.height * 2
-        // Проверяем наличие CoreML моделей и запускаем pipeline
+        // Ensure CoreML models exist and start pipeline
         guard areCoreMLModelsAvailable() else {
-            finishWithError("Не найдены Core ML модели FastDVDnet.mlpackage и RealBasicVSR_x2.mlpackage. Поместите их рядом с приложением или в Resources.")
+            finishWithError("Core ML models FastDVDnet.mlpackage and RealBasicVSR_x2.mlpackage not found. Place them next to the app or in Resources.")
             return
         }
         processVSRCoreML(input: inputURL, width: targetWidth, height: targetHeight)
@@ -353,9 +352,9 @@ struct ContentView: View {
         if gb >= 16 { return "640" }
         return "512"
     }
-    // Упразднили старый выбор NCNN-алгоритмов: всё через Core ML
+    // NCNN path removed — Core ML only
     private func processVSRCoreML(input: URL, width: Int, height: Int) {
-        currentStep = "Обработка через VSR (Core ML)"
+        currentStep = ""
         currentStepIndex = 1
         let outputURL = createOutputURL(from: input, suffix: "vsr", width: width, height: height)
         // New: prefer CLI pipeline for robustness/logging
@@ -367,13 +366,13 @@ struct ContentView: View {
         return findMLPackage("FastDVDnet") != nil && findMLPackage("RealBasicVSR_x2") != nil
     }
     private func extractFramesAndProcessCoreML(input: URL, output: URL) {
-        // Создаем временную папку
+        // Create temp folder
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("Momento_\(UUID().uuidString)")
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
             workingTempDir = tempDir
-            currentStep = "Извлечение кадров из видео"
-            // Извлекаем кадры (JPEG для fast, PNG для quality)
+            currentStep = "Extracting frames"
+            // Extract frames (JPEG for fast, PNG for quality)
             let extractProcess = Process()
             extractProcess.launchPath = ffmpegPath()
             var args: [String] = ["-hide_banner", "-v", "error", "-progress", "pipe:1", "-i", input.path]
@@ -395,7 +394,7 @@ struct ContentView: View {
                             let pct = min(max((outMS/1_000_000.0)/max(self.extractionTotalDuration, 0.0001), 0.0), 1.0)
                             DispatchQueue.main.async {
                                 self.progressValue = pct
-                                self.progress = "📤 Извлечение кадров: " + String(format: "%.0f%%", pct * 100)
+                                self.progress = "📤 Extracting frames: " + String(format: "%.0f%%", pct * 100)
                                 self.updateETA(percent: pct)
                             }
                         }
@@ -415,14 +414,14 @@ struct ContentView: View {
                     if process.terminationStatus == 0 {
                         self.processFramesWithCoreMLVSRBatched(tempDir: tempDir, originalVideo: input, output: output)
                     } else {
-                        self.finishWithError("Ошибка извлечения кадров")
+                        self.finishWithError("Frame extraction failed")
                     }
                 }
             }
             currentProcess = extractProcess
             try extractProcess.run()
         } catch {
-            finishWithError("Ошибка CoreML-пайплайна: \(error.localizedDescription)")
+            finishWithError("Core ML pipeline error: \(error.localizedDescription)")
         }
     }
 
@@ -458,7 +457,7 @@ struct ContentView: View {
             p.arguments = ["run", "--package-path", cliSourceDir.path, "coreml-vsr-cli", "--input", input.path, "--models", modelsDir.path, "--tmp", tempDir.path, "--output", output.path]
             p.currentDirectoryPath = projectRootDir.path
         } else {
-            appendStderr("[CLI] coreml-vsr-cli не найден; fallback на встроенный CoreML пайплайн")
+            appendStderr("[CLI] coreml-vsr-cli not found; falling back to built-in Core ML pipeline")
             extractFramesAndProcessCoreML(input: input, output: output)
             return
         }
@@ -490,7 +489,7 @@ struct ContentView: View {
             try p.run()
             isProcessing = true
             // Don't print a dedicated Core ML stage label
-            // Start polling tempDir to estimate progress by counting upscaled frames only
+            // Start polling tempDir and estimate progress by counting upscaled frames only
             let fpsGuess = max(1.0, self.getVideoFPS(url: input))
             let dur = max(0.001, self.getVideoDuration(url: input))
             var expected = max(1, Int((fpsGuess * dur).rounded()))
@@ -516,43 +515,43 @@ struct ContentView: View {
                     self.progressValue = combined
                     self.processedFramesCount = nUpscaled
                     self.totalFramesCount = expected
-                    self.progress = String(format: "📊 Кадры: %d/%d", nUpscaled, expected)
+                    self.progress = String(format: "📊 Frames: %d/%d", nUpscaled, expected)
                     self.updateETAFromFrames(processed: nUpscaled, total: expected)
                 }
             }
         } catch {
-            finishWithError("Не удалось запустить CLI: \(error.localizedDescription)")
+            finishWithError("Failed to launch CLI: \(error.localizedDescription)")
         }
     }
     private func processFramesWithCoreMLVSR(tempDir: URL, originalVideo: URL, output: URL) {
-        currentStep = "FastDVDnet + RealBasicVSR (CoreML)"
+        currentStep = "FastDVDnet + RealBasicVSR (Core ML)"
         let outputFramesDir = tempDir.appendingPathComponent("upscaled")
         do { try FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true) } catch {}
         
-        // Загружаем CoreML модели
+        // Load CoreML models
         // Locate model packages and provide detailed errors
         let fastURL = findMLPackage("FastDVDnet")
         let rbvURL = findMLPackage("RealBasicVSR_x2")
         if fastURL == nil || rbvURL == nil {
-            let msg = "Не найдены CoreML модели:\nFastDVDnet: \(fastURL?.path ?? "—")\nRealBasicVSR_x2: \(rbvURL?.path ?? "—")"
+            let msg = "CoreML models not found:\nFastDVDnet: \(fastURL?.path ?? "—")\nRealBasicVSR_x2: \(rbvURL?.path ?? "—")"
             finishWithError(msg)
             return
         }
         guard let fastDVDModel = loadCoreMLModel(name: "FastDVDnet.mlpackage") else {
-            finishWithError("Не удалось загрузить FastDVDnet: \(fastURL!.path)")
+            finishWithError("Failed to load FastDVDnet: \(fastURL!.path)")
             return
         }
         guard let realBasicVSRModel = loadCoreMLModel(name: "RealBasicVSR_x2.mlpackage") else {
-            finishWithError("Не удалось загрузить RealBasicVSR_x2: \(rbvURL!.path)")
+            finishWithError("Failed to load RealBasicVSR_x2: \(rbvURL!.path)")
             return
         }
         
-        // Собираем список кадров
+        // Collect frames list
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
             .filter({ $0.pathExtension.lowercased() == frameExtension })
             .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) else {
-            finishWithError("Не удалось получить список кадров для Core ML")
+            finishWithError("Failed to list frames for Core ML")
             return
         }
         
@@ -562,13 +561,13 @@ struct ContentView: View {
         
         DispatchQueue.global(qos: .userInitiated).async(execute: {
             if self.cancelRequested { return }
-            // Этап 1: Денойзинг с FastDVDnet (5-кадровые окна)
+            // Stage 1: Denoise with FastDVDnet (5-frame window)
             var denoisedFrames: [MLMultiArray] = []
             
             for i in 0..<files.count {
                 if self.cancelRequested { return }
                 autoreleasepool {
-                    // Создаем 5-кадровое окно для FastDVDnet
+                    // Create 5-frame window for FastDVDnet
                     var frameWindow: [NSImage] = []
                     for j in -2...2 {
                         let frameIndex = max(0, min(files.count - 1, i + j))
@@ -579,11 +578,11 @@ struct ContentView: View {
                     
                     guard frameWindow.count == 5 else {
                         if self.cancelRequested { return }
-                        DispatchQueue.main.async { self.finishWithError("Ошибка создания 5-кадрового окна") }
+                        DispatchQueue.main.async { self.finishWithError("Failed to build 5-frame window") }
                         return
                     }
                     
-                    // Создаем входной тензор [1, 15, 256, 256]
+                    // Build input tensor [1, 15, 256, 256]
                     if let inputArray = self.create5FrameInput(frames: frameWindow) {
                         do {
                             let inputFeatures = try MLDictionaryFeatureProvider(dictionary: ["x_9": MLFeatureValue(multiArray: inputArray)])
@@ -605,13 +604,13 @@ struct ContentView: View {
                         self.processedFramesCount = i + 1
                         let frac = Double(self.processedFramesCount) / Double(max(self.totalFramesCount, 1))
                         self.progressValue = 0.5 * frac
-                        self.progress = "🧹 FastDVDnet денойзинг: " + String(format: "%.0f%% (\(self.processedFramesCount)/\(self.totalFramesCount))", self.progressValue * 100)
+                        self.progress = "🧹 FastDVDnet denoise: " + String(format: "%.0f%% (\(self.processedFramesCount)/\(self.totalFramesCount))", self.progressValue * 100)
                         self.updateETAFromFrames(processed: self.processedFramesCount, total: self.totalFramesCount * 2)
                     }
                 }
             }
             
-            // Этап 2: Апскейлинг x2 с RealBasicVSR
+            // Stage 2: Upscale x2 with RealBasicVSR
             for (idx, denoisedArray) in denoisedFrames.enumerated() {
                 if self.cancelRequested { return }
                 autoreleasepool {
@@ -663,14 +662,14 @@ struct ContentView: View {
         do { try FileManager.default.createDirectory(at: outputFramesDir, withIntermediateDirectories: true) } catch {}
         guard let fastDVDModel = loadCoreMLModel(name: "FastDVDnet.mlpackage"),
               var realBasicVSRModel = loadCoreMLModel(name: "RealBasicVSR_x2.mlpackage") else {
-            finishWithError("Не удалось загрузить CoreML модели")
+            finishWithError("Failed to load Core ML models")
             return
         }
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
             .filter({ $0.pathExtension.lowercased() == frameExtension })
             .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) else {
-            finishWithError("Не удалось получить список кадров для Core ML")
+            finishWithError("Failed to list frames for Core ML")
             return
         }
         totalFramesCount = files.count
@@ -685,23 +684,23 @@ struct ContentView: View {
                 tensorCache[idx] = t
                 return t
             }
-            // Два строгих этапа без перемежения
-            // Обновляем шаги (1/3): Денойзинг
+            // Two strict stages without interleaving
+            // Update steps (1/3): Denoise
             DispatchQueue.main.async {
                 self.totalSteps = 3
-                // Шаг 2/3: обработка (денойзинг + апскейл)
+                // Step 2/3: processing (denoise + upscale)
                 self.currentStepIndex = 2
-                self.currentStep = "Денойзинг (FastDVDnet)"
+                self.currentStep = "Denoise (FastDVDnet)"
             }
             let denoisedDir = tempDir.appendingPathComponent("var_979")
             try? FileManager.default.createDirectory(at: denoisedDir, withIntermediateDirectories: true)
             let opts = MLPredictionOptions(); if #available(macOS 12.0, *) { opts.usesCPUOnly = false }
             let cores = max(ProcessInfo.processInfo.activeProcessorCount, 1)
             let conc = max(2, min(cores, 8))
-            // Буфер тензоров после денойза, чтобы не терять динамический диапазон
+            // Buffer of denoised tensors to preserve dynamic range
             var denoisedArrays = [Int: MLMultiArray]()
             let denoisedLock = NSLock()
-            // Этап 1: FastDVDnet для всех кадров (параллельно, без перемежения этапов)
+            // Stage 1: FastDVDnet for all frames (parallel, no interleaving)
             let g1 = DispatchGroup(); let s1 = DispatchSemaphore(value: conc)
             var done1 = 0
             for idx in 0..<files.count {
@@ -725,21 +724,21 @@ struct ContentView: View {
                             let frac = Double(local) / Double(max(self.totalFramesCount, 1))
                             let overall = 0.5 * frac
                             if overall > self.progressValue { self.progressValue = overall }
-                            self.progress = String(format: "🧹 FastDVDnet денойзинг: %.0f%% (%d/%d)", frac * 100, local, self.totalFramesCount)
+                            self.progress = String(format: "🧹 FastDVDnet denoise: %.0f%% (%d/%d)", frac * 100, local, self.totalFramesCount)
                             self.updateETAFromFrames(processed: local, total: self.totalFramesCount * 2)
                         }
                     }
                 }
             }
             g1.wait()
-            // Переходим к шагу 2/3: Апскейл
+            // Move to step 2/3: Upscale
             DispatchQueue.main.async {
-                // Шаг остаётся 2/3 на протяжении всего этапа обработки
+                // Step remains 2/3 throughout the processing stage
                 self.currentStepIndex = 2
-                self.currentStep = "Апскейл (RealBasicVSR x2)"
+                self.currentStep = "Upscale (RealBasicVSR x2)"
             }
-            // Этап 2: RealBasicVSR для всех кадров (параллельно)
-            // Калибруем вход на первом примере и подбираем computeUnits (GPU/CPU), если GPU даёт константы
+            // Stage 2: RealBasicVSR for all frames (parallel)
+            // Calibrate on the first example and select computeUnits (GPU/CPU) if GPU returns constants
             var calibArr: MLMultiArray? = nil
             denoisedLock.lock(); calibArr = denoisedArrays[0]; denoisedLock.unlock()
             // 0) Try saved config
@@ -772,7 +771,7 @@ struct ContentView: View {
                 let up = testOut.featureValue(for: "var_867")?.multiArrayValue {
                 let scGPU = self.statsColor(up)
                 if scGPU.std < 0.005 || scGPU.colorFrac < 0.01, let rbvCPU = self.loadCoreMLModel(name: "RealBasicVSR_x2.mlpackage", units: .cpuOnly) {
-                    // Пробуем CPU-режим и перекалибровку
+                    // Try CPU mode and recalibration
                     let cfgCPU = self.calibrateRBVConfig(example: a, rbv: rbvCPU)
                     if let testIn2 = self.applyLayoutAndNorm(a, axis: cfgCPU.channelAxis, mode: cfgCPU.mode, bgrSwap: cfgCPU.bgrSwap),
                        let out2 = try? rbvCPU.prediction(from: MLDictionaryFeatureProvider(dictionary: ["x_1": MLFeatureValue(multiArray: testIn2)])),
@@ -780,23 +779,23 @@ struct ContentView: View {
                         let scCPU = self.statsColor(up2)
                         if scCPU.std > scGPU.std || scCPU.colorFrac > scGPU.colorFrac {
                             realBasicVSRModel = rbvCPU; rbvCfg = cfgCPU; unitsUsed = "CPU"
-                            self.appendStdout("[DBG] RBV GPU дал плохой выход; выбрал CPU + рекалибровка")
+                            self.appendStdout("[DBG] RBV GPU returned poor output; switched to CPU + recalibration")
                         } else if scGPU.std < 0.005 && scGPU.colorFrac < 0.01 && scCPU.std < 0.005 && scCPU.colorFrac < 0.01 {
-                            // Оба варианта ни о чём — полностью отключаем RBV и используем bicubic
+                            // Both ineffective — disable RBV and use bicubic
                             rbvDisabled = true
-                            self.appendStdout("[DBG] RBV отключён (оба бэкенда бесполезны), используем bicubic")
+                            self.appendStdout("[DBG] RBV disabled (both backends ineffective), using bicubic")
                         }
                     }
                 } else if scGPU.std < 0.005 && scGPU.colorFrac < 0.01 {
                     rbvDisabled = true
-                    self.appendStdout("[DBG] RBV отключён (GPU бесполезен), используем bicubic")
+                    self.appendStdout("[DBG] RBV disabled (GPU ineffective), using bicubic")
                 }
             }
             DispatchQueue.main.async {
                 let modeDesc: String = {
                     switch rbvCfg.mode { case 1: return "[-1..1]"; case 2: return "x255"; case 3: return "(x*255-127.5)/127.5"; default: return "[0..1]" }
                 }()
-                self.rbvDiagnosticsInfo = rbvDisabled ? "RBV отключён (fallback bicubic)" : "RBV cfg: axis=\(rbvCfg.channelAxis), norm=\(modeDesc), BGR=\(rbvCfg.bgrSwap), units=\(unitsUsed)"
+                self.rbvDiagnosticsInfo = rbvDisabled ? "RBV disabled (fallback bicubic)" : "RBV cfg: axis=\(rbvCfg.channelAxis), norm=\(modeDesc), BGR=\(rbvCfg.bgrSwap), units=\(unitsUsed)"
             }
             // Persist config
             if !rbvDisabled { self.saveRBVConfig(rbvCfg, units: unitsUsed) }
@@ -808,7 +807,7 @@ struct ContentView: View {
                 DispatchQueue.global(qos: .userInitiated).async {
                     defer { s2.signal(); g2.leave() }
                     if self.cancelRequested { return }
-                    // Берём тензор прямо из буфера денойза и применяем выбранное преобразование
+                    // Take tensor from denoise buffer and apply selected transform
                     denoisedLock.lock(); let inputArr = denoisedArrays[idx]; denoisedLock.unlock()
                     if rbvDisabled {
                         // Полный fallback: bicubic-up denоised, иначе от исходного кадра
@@ -892,26 +891,26 @@ struct ContentView: View {
     private func writeImage(_ image: CIImage, to url: URL, context: CIContext, ext: String) throws {
         let colorSpace = CGColorSpaceCreateDeviceRGB()
         guard let cgImage = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: colorSpace) else {
-            throw NSError(domain: "Momento", code: -1, userInfo: [NSLocalizedDescriptionKey: "Не удалось создать CGImage"])
+            throw NSError(domain: "Momento", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create CGImage"])
         }
         let dest = CGImageDestinationCreateWithURL(url as CFURL, (ext == "png" ? kUTTypePNG : kUTTypeJPEG) as CFString, 1, nil)!
         var props: [CFString: Any] = [:]
         if ext == "jpg" { props[kCGImageDestinationLossyCompressionQuality] = 0.95 }
         CGImageDestinationAddImage(dest, cgImage, props as CFDictionary)
         if !CGImageDestinationFinalize(dest) {
-            throw NSError(domain: "Momento", code: -2, userInfo: [NSLocalizedDescriptionKey: "Не удалось записать изображение"])
+            throw NSError(domain: "Momento", code: -2, userInfo: [NSLocalizedDescriptionKey: "Failed to write image"])
         }
     }
-    // Удалены: extractFramesAndProcess + NCNN upscalers (RealESRGAN/RealCUGAN/Waifu2x)
+    // Removed: extractFramesAndProcess + NCNN upscalers (RealESRGAN/RealCUGAN/Waifu2x)
     private func reassembleVideo(framesDir: URL, originalVideo: URL, output: URL, tempDir: URL) {
-        currentStep = "Сборка финального видео"
+        currentStep = "Assembling final video"
         currentStepIndex = 3
         
-        // Диагностика кадров для сборки
+        // Diagnostics for assembly
         let frameFiles = (try? FileManager.default.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil).filter { $0.pathExtension.lowercased() == frameExtension }) ?? []
-        appendStdout("[DBG] Кадров для сборки: \(frameFiles.count) в \(framesDir.path)")
-        if frameFiles.count > 0 { appendStdout("[DBG] Первые: \(frameFiles.prefix(3).map{ $0.lastPathComponent }.joined(separator: ", "))") }
-        // Получаем FPS оригинального видео
+        appendStdout("[DBG] Frames to assemble: \(frameFiles.count) in \(framesDir.path)")
+        if frameFiles.count > 0 { appendStdout("[DBG] First: \(frameFiles.prefix(3).map{ $0.lastPathComponent }.joined(separator: ", "))") }
+        // Get original video FPS
         let fps = getVideoFPS(url: originalVideo)
         let process = Process()
         process.launchPath = ffmpegPath()
@@ -924,7 +923,7 @@ struct ContentView: View {
             "-i", "\(framesDir.path)/%08d.\(self.frameExtension)",
             "-i", originalVideo.path,
         ]
-        // Масштаб до целевого разрешения (при необходимости)
+        // Scale to target resolution if needed
         let targetName = output.deletingPathExtension().lastPathComponent
         if let xRange = targetName.range(of: #"_(\d+)x(\d+)$"#, options: .regularExpression) {
             let dims = String(targetName[xRange]).dropFirst()
@@ -948,7 +947,7 @@ struct ContentView: View {
             output.path
         ]
         process.arguments = args
-        // Прогресс сборки по out_time_ms от ffmpeg на основе длительности
+        // Build progress from ffmpeg out_time_ms vs duration
         let duration = max(getVideoDuration(url: originalVideo), 0.0001)
         let outPipe = Pipe()
         process.standardOutput = outPipe
@@ -963,7 +962,7 @@ struct ContentView: View {
                         let pct = min(max((outMS / 1_000_000.0) / duration, 0.0), 1.0)
                         DispatchQueue.main.async {
                             self.progressValue = pct
-                            self.progress = "📦 Сборка видео: " + String(format: "%.0f%%", pct * 100)
+                            self.progress = "📦 Muxing video: " + String(format: "%.0f%%", pct * 100)
                             self.updateETA(percent: pct)
                         }
                     }
@@ -981,7 +980,7 @@ struct ContentView: View {
             DispatchQueue.main.async {
                 outPipe.fileHandleForReading.readabilityHandler = nil
                 errPipe.fileHandleForReading.readabilityHandler = nil
-                // Очистка временных файлов
+                // Cleanup temp files
                 try? FileManager.default.removeItem(at: tempDir)
                 self.workingTempDir = nil
                 self.finishProcessing(exitCode: process.terminationStatus)
@@ -991,7 +990,7 @@ struct ContentView: View {
             currentProcess = process
             try process.run()
         } catch {
-            finishWithError("Ошибка сборки видео: \(error.localizedDescription)")
+            finishWithError("Video assembly failed: \(error.localizedDescription)")
         }
     }
     private func finishProcessing(exitCode: Int32) {
@@ -1008,11 +1007,11 @@ struct ContentView: View {
         lastRateSampleFrames = 0
         etaText = ""
         if exitCode == 0 {
-            progress = "✅ Обработка завершена успешно!"
+            progress = "✅ Processing completed successfully!"
             showSuccessAlert()
         } else {
-            progress = "❌ Ошибка обработки (код: \(exitCode))"
-            showErrorAlert("Процесс завершился с ошибкой")
+            progress = "❌ Processing failed (code: \(exitCode))"
+            showErrorAlert("Process finished with an error")
         }
     }
     private func finishWithError(_ message: String) {
@@ -1050,7 +1049,7 @@ struct ContentView: View {
                 }
             }
         } catch {
-            print("Ошибка получения размера: \(error)")
+            print("Failed to get size: \(error)")
         }
         return (640, 480)
     }
@@ -1081,7 +1080,7 @@ struct ContentView: View {
                 }
             }
         } catch {
-            print("Ошибка получения FPS: \(error)")
+            print("Failed to get FPS: \(error)")
         }
         return 30.0
     }
@@ -1097,9 +1096,9 @@ struct ContentView: View {
         let minutes = Int(elapsed) / 60
         let seconds = Int(elapsed) % 60
         if minutes > 0 {
-            timeElapsed = "\(minutes)м \(seconds)с"
+            timeElapsed = "\(minutes)m \(seconds)s"
         } else {
-            timeElapsed = "\(seconds)с"
+            timeElapsed = "\(seconds)s"
         }
     }
     private func updateETAFromFrames(processed: Int, total: Int) {
@@ -1109,12 +1108,12 @@ struct ContentView: View {
             let dt = now.timeIntervalSince(lastT)
             let df = processed - lastRateSampleFrames
             if df > 0 && dt > 0.1 {
-                let inst = dt / Double(df) // сек/кадр
+                let inst = dt / Double(df) // sec/frame
                 if emaFrameTime == 0 { emaFrameTime = inst } else { emaFrameTime = 0.3 * inst + 0.7 * emaFrameTime }
                 let remaining = max(total - processed, 0)
-                // не пугаем огромной ETA в самом начале — ждём хотя бы 20 кадров
+                // avoid noisy ETA in the beginning — wait for ~20 frames
                 if processed < 20 {
-                    etaText = "оцениваем..."
+                    etaText = "estimating..."
                 } else {
                     let rem = emaFrameTime * Double(remaining)
                     let m = Int(rem) / 60
@@ -1127,14 +1126,14 @@ struct ContentView: View {
         lastRateSampleFrames = processed
     }
     private func updateETA(percent: Double) {
-        guard let start = startTime, percent > 0.01 else { // Увеличили минимум до 1%
+        guard let start = startTime, percent > 0.01 else {
             etaText = ""
             return
         }
         let elapsed = Date().timeIntervalSince(start)
         let remaining = elapsed * (1.0 - percent) / percent
-        // Защита от огромных времен
-        if remaining > 7200 { // Больше 2 часов - не показываем
+        // Hide unrealistic huge values (> 2h)
+        if remaining > 7200 {
             etaText = ""
             return
         }
@@ -1161,7 +1160,7 @@ struct ContentView: View {
                 return Double(output.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0.0
             }
         } catch {
-            print("Ошибка получения длительности: \(error)")
+            print("Failed to get duration: \(error)")
         }
         return 0.0
     }
@@ -1183,24 +1182,24 @@ struct ContentView: View {
             try? FileManager.default.removeItem(at: tmp)
             workingTempDir = nil
         }
-        progress = "⏹ Операция остановлена пользователем"
+        progress = "⏹ Operation cancelled"
     }
     private func showSuccessAlert() {
         let alert = NSAlert()
-        alert.messageText = "🎉 Обработка завершена!"
-        alert.informativeText = "Видео успешно обработано и сохранено рядом с оригинальным файлом"
+        alert.messageText = "🎉 Processing complete!"
+        alert.informativeText = "The video has been processed and saved next to the original file."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
     private func showErrorAlert(_ message: String) {
         let alert = NSAlert()
-        alert.messageText = "❌ Ошибка"
+        alert.messageText = "❌ Error"
         let details = getErrorSnippet()
         if details.isEmpty {
             alert.informativeText = message
         } else {
-            alert.informativeText = message + "\n\nПодробности:\n" + details
+            alert.informativeText = message + "\n\nDetails:\n" + details
         }
         alert.alertStyle = .critical
         alert.addButton(withTitle: "OK")
@@ -1434,21 +1433,21 @@ extension ContentView {
     // Locate .mlpackage in SwiftPM bundle, app resources, sub-bundles, or workspace
     private func findMLPackage(_ baseName: String) -> URL? {
         let fm = FileManager.default
-        print("[DEBUG] Поиск модели: \(baseName)")
-        // 1) Сразу проверяем workspace fallbacks (для development mode)
+        print("[DEBUG] Looking for model: \(baseName)")
+        // 1) Check workspace fallbacks first (development mode)
         let candidates: [URL] = [projectRoot(), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/Momento"), URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents/Coding/MaccyScaler")]
-        print("[DEBUG] Проверяю кандидатов: \(candidates.map { $0.path })")
+        print("[DEBUG] Candidates: \(candidates.map { $0.path })")
         for base in candidates {
             let pTools = base.appendingPathComponent("Tools/\(baseName).mlpackage")
-            print("[DEBUG] Проверяю Tools: \(pTools.path) - существует: \(fm.fileExists(atPath: pTools.path))")
+            print("[DEBUG] Check Tools: \(pTools.path) - exists: \(fm.fileExists(atPath: pTools.path))")
             if fm.fileExists(atPath: pTools.path) { 
-                print("[DEBUG] Найден в Tools: \(pTools.path)")
+                print("[DEBUG] Found in Tools: \(pTools.path)")
                 return pTools 
             }
             let pRoot = base.appendingPathComponent("\(baseName).mlpackage")
-            print("[DEBUG] Проверяю Root: \(pRoot.path) - существует: \(fm.fileExists(atPath: pRoot.path))")
+            print("[DEBUG] Check Root: \(pRoot.path) - exists: \(fm.fileExists(atPath: pRoot.path))")
             if fm.fileExists(atPath: pRoot.path) { 
-                print("[DEBUG] Найден в Root: \(pRoot.path)")
+                print("[DEBUG] Found in Root: \(pRoot.path)")
                 return pRoot 
             }
         }
@@ -1478,8 +1477,8 @@ extension ContentView {
                 }
             }
         }
-        // Workspace fallbacks уже проверены выше
-        print("[DEBUG] Модель \(baseName) не найдена!")
+        // Workspace fallbacks were checked above
+        print("[DEBUG] Model \(baseName) not found!")
         return nil
     }
     private func loadSavedRBVConfig() -> (RBVInputConfig, String)? {
@@ -1514,7 +1513,7 @@ extension ContentView {
             return try MLModel(contentsOf: loadURL, configuration: config)
         } catch {
             let desc = (error as NSError).localizedDescription
-            print("Ошибка загрузки модели \(name) по пути: \(url.path) — \(desc)")
+            print("Failed to load model \(name) at: \(url.path) — \(desc)")
             return nil
         }
     }
@@ -1536,7 +1535,7 @@ extension ContentView {
             return try MLModel(contentsOf: loadURL, configuration: config)
         } catch {
             let desc = (error as NSError).localizedDescription
-            print("Ошибка загрузки модели \(name) (\(units)) по пути: \(url.path) — \(desc)")
+            print("Failed to load model \(name) (\(units)) at: \(url.path) — \(desc)")
             return nil
         }
     }
