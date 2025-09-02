@@ -31,6 +31,12 @@ test_video.mp4
 # Python virtual envs
 venv/
 venv_coreml/
+rife/
+
+# Large archives and vendor zips (do not commit)
+*.zip
+realesrgan-ncnn-vulkan-macos.zip
+rife-ncnn-vulkan-macos.zip
 
 # Large model artifacts (prefer release assets or LFS)
 *.pt
