@@ -5,6 +5,7 @@ on:
     paths:
       - 'docs/*.dmg'
       - 'docs/*.zip'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -16,12 +17,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Find version from DMG filename
+      - name: Find latest DMG and version
         id: ver
         shell: bash
         run: |
           set -e
-          DMG=$(ls docs/*.dmg | head -n1)
+          DMG=$(ls -1 docs/Momento-*.dmg | sort -V | tail -n1)
           if [[ -z "$DMG" ]]; then echo "No DMG found in docs/" >&2; exit 1; fi
           BN=$(basename "$DMG")
           if [[ "$BN" =~ Momento-([0-9\.]+)\.dmg ]]; then
@@ -38,9 +39,8 @@ jobs:
           tag_name: v${{ steps.ver.outputs.version }}
           name: v${{ steps.ver.outputs.version }}
           files: |
-            docs/*.dmg
+            docs/Momento-${{ steps.ver.outputs.version }}.dmg
             docs/*.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
