@@ -364,11 +364,26 @@ func main() throws {
         }
     }
 
-    // 5) Reassemble video using source FPS
+    // 5) Reassemble video using source FPS and preserve original audio (if any)
     let outputURL = args.outputVideo != nil ? URL(fileURLWithPath: args.outputVideo!) : URL(fileURLWithPath: args.inputVideo).deletingPathExtension().appendingPathExtension("coreml_x2.mp4")
     let srcFPS = probeFPS(args.inputVideo)
     let fpsStr = String(format: "%.03f", srcFPS)
-    try run(ffmpegPath(), ["-hide_banner","-y","-framerate", fpsStr, "-i", upscaledDir.appendingPathComponent("%08d.png").path, "-c:v","libx264","-crf","18","-preset","veryfast","-pix_fmt","yuv420p", outputURL.path])
+    let images = upscaledDir.appendingPathComponent("%08d.png").path
+    try run(ffmpegPath(), [
+        "-hide_banner", "-y",
+        "-framerate", fpsStr,
+        "-i", images,                // 0: video from frames
+        "-i", args.inputVideo,       // 1: original, for audio
+        "-map", "0:v:0",
+        "-map", "1:a:0?",
+        "-c:v", "libx264",
+        "-crf", "18",
+        "-preset", "veryfast",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "copy",
+        "-shortest",
+        outputURL.path
+    ])
     print("Saved: \(outputURL.path)")
 }
 
