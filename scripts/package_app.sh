@@ -25,19 +25,31 @@ rm -rf "$APP_DIR"
 echo "[2/5] Creating bundle structure..."
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
-# Build AppIcon.icns from the latest PNG in Downloads (if present)
-LATEST_PNG=$(find "$HOME/Downloads" -type f -iname "*.png" -print0 2>/dev/null | xargs -0 ls -t1 2>/dev/null | head -n 1 || true)
+# Build AppIcon.icns from a source image
 ICON_NAME="AppIcon.icns"
 ICON_PATH="$APP_DIR/Contents/Resources/$ICON_NAME"
+ICON_SRC_REPO="branding/AppIconSource.png"
+
+# Prefer the latest PNG from Downloads; also snapshot it into the repo (branding/AppIconSource.png)
+LATEST_PNG=$(find "$HOME/Downloads" -type f -iname "*.png" -print0 2>/dev/null | xargs -0 ls -t1 2>/dev/null | head -n 1 || true)
+SRC_ICON=""
 if [[ -n "$LATEST_PNG" && -f "$LATEST_PNG" ]]; then
-  echo "Creating app icon from: $LATEST_PNG"
+  mkdir -p "branding"
+  cp -f "$LATEST_PNG" "$ICON_SRC_REPO" || true
+  SRC_ICON="$ICON_SRC_REPO"
+elif [[ -f "$ICON_SRC_REPO" ]]; then
+  SRC_ICON="$ICON_SRC_REPO"
+fi
+
+if [[ -n "$SRC_ICON" && -f "$SRC_ICON" ]]; then
+  echo "Creating app icon from: $SRC_ICON"
   TMP_ICONSET="dist/icon.iconset"
   rm -rf "$TMP_ICONSET" && mkdir -p "$TMP_ICONSET"
   # Generate required sizes
   for size in 16 32 64 128 256 512; do
-    sips -z $size $size "$LATEST_PNG" --out "$TMP_ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1 || true
+    sips -z $size $size "$SRC_ICON" --out "$TMP_ICONSET/icon_${size}x${size}.png" >/dev/null 2>&1 || true
     dbl=$((size*2))
-    sips -z $dbl $dbl "$LATEST_PNG" --out "$TMP_ICONSET/icon_${size}x${size}@2x.png" >/dev/null 2>&1 || true
+    sips -z $dbl $dbl "$SRC_ICON" --out "$TMP_ICONSET/icon_${size}x${size}@2x.png" >/dev/null 2>&1 || true
   done
   # Build icns
   if command -v iconutil >/dev/null 2>&1; then
@@ -45,6 +57,8 @@ if [[ -n "$LATEST_PNG" && -f "$LATEST_PNG" ]]; then
   else
     echo "Warning: iconutil not found; skipping icns creation"
   fi
+else
+  echo "Warning: No icon source found; app will use default icon"
 fi
 
 echo "[3/5] Writing Info.plist..."
