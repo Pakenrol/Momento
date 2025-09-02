@@ -164,12 +164,10 @@ struct ContentView: View {
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            Text("Нижний прогресс — общий. Строка выше — прогресс текущего этапа.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            // Removed extra explanation text
                         }
                         if !currentStep.isEmpty {
-                            Text("📍 \(currentStep) (\(currentStepIndex)/\(totalSteps))")
+                            Text("📍 \(currentStep)")
                                 .font(.subheadline)
                                 .foregroundColor(.blue)
                         }
@@ -512,8 +510,9 @@ struct ContentView: View {
                 let upscaleDir = tempDir.appendingPathComponent("upscaled")
                 if let a = try? fm.contentsOfDirectory(at: framesDir, includingPropertiesForKeys: nil) { nFrames = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
                 if let a = try? fm.contentsOfDirectory(at: upscaleDir, includingPropertiesForKeys: nil) { nUpscaled = a.filter{ ["png","jpg","jpeg"].contains($0.pathExtension.lowercased()) }.count }
-                // Dynamic expected based on observed frames (more accurate than fps*duration)
-                expected = max(expected, nFrames, nUpscaled)
+                // Dynamic expected converges to observed number of frames
+                if nFrames > 0 { expected = nFrames }
+                else if nUpscaled > 0 { expected = max(1, nUpscaled) }
                 let fExp = Double(max(1, expected))
                 let combined = min(1.0, Double(nUpscaled) / fExp)
                 DispatchQueue.main.async {

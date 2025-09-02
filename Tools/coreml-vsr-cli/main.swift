@@ -50,6 +50,29 @@ func ffmpegPath() -> String {
     return "/opt/homebrew/bin/ffmpeg"
 }
 
+func ffprobePath() -> String {
+    let fm = FileManager.default
+    for p in ["/opt/homebrew/bin/ffprobe", "/usr/local/bin/ffprobe", "/usr/bin/ffprobe"] { if fm.isExecutableFile(atPath: p) { return p } }
+    return "/opt/homebrew/bin/ffprobe"
+}
+
+func probeFPS(_ video: String) -> Double {
+    // Read r_frame_rate and convert to double
+    let p = Process()
+    p.launchPath = ffprobePath()
+    p.arguments = ["-v","error","-select_streams","v:0","-show_entries","stream=r_frame_rate","-of","default=nokey=1:noprint_wrappers=1", video]
+    let out = Pipe(); p.standardOutput = out
+    do { try p.run(); p.waitUntilExit() } catch { return 30.0 }
+    let data = out.fileHandleForReading.readDataToEndOfFile()
+    guard let s = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return 30.0 }
+    if let slash = s.firstIndex(of: "/") {
+        let num = Double(s[..<slash]) ?? 0
+        let den = Double(s[s.index(after: slash)...]) ?? 1
+        return den != 0 ? max(1.0, num/den) : 30.0
+    }
+    return Double(s) ?? 30.0
+}
+
 func run(_ launchPath: String, _ arguments: [String]) throws {
     let p = Process()
     p.launchPath = launchPath
@@ -343,7 +366,9 @@ func main() throws {
 
     // 5) Reassemble video using source FPS
     let outputURL = args.outputVideo != nil ? URL(fileURLWithPath: args.outputVideo!) : URL(fileURLWithPath: args.inputVideo).deletingPathExtension().appendingPathExtension("coreml_x2.mp4")
-    try run(ffmpegPath(), ["-hide_banner","-y","-framerate","30","-i", upscaledDir.appendingPathComponent("%08d.png").path, "-c:v","libx264","-crf","18","-preset","veryfast","-pix_fmt","yuv420p", outputURL.path])
+    let srcFPS = probeFPS(args.inputVideo)
+    let fpsStr = String(format: "%.03f", srcFPS)
+    try run(ffmpegPath(), ["-hide_banner","-y","-framerate", fpsStr, "-i", upscaledDir.appendingPathComponent("%08d.png").path, "-c:v","libx264","-crf","18","-preset","veryfast","-pix_fmt","yuv420p", outputURL.path])
     print("Saved: \(outputURL.path)")
 }
 
