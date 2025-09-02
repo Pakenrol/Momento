@@ -1,0 +1,46 @@
+name: release-from-docs
+
+on:
+  push:
+    paths:
+      - 'docs/*.dmg'
+      - 'docs/*.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find version from DMG filename
+        id: ver
+        shell: bash
+        run: |
+          set -e
+          DMG=$(ls docs/*.dmg | head -n1)
+          if [[ -z "$DMG" ]]; then echo "No DMG found in docs/" >&2; exit 1; fi
+          BN=$(basename "$DMG")
+          if [[ "$BN" =~ Momento-([0-9\.]+)\.dmg ]]; then
+            VER="${BASH_REMATCH[1]}"
+          else
+            echo "Cannot parse version from $BN" >&2; exit 1
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "dmg=$DMG" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
+          files: |
+            docs/*.dmg
+            docs/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
