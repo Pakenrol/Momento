@@ -113,23 +113,26 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     Spacer()
-                    Button(action: { downloadModelsTapped() }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: isDownloadingModels ? "arrow.down.circle.fill" : "arrow.down.circle")
-                            Text(isDownloadingModels ? "Downloading…" : "Download AI Models")
+                    // Show the "Download Models" button only if models are not available
+                    if !areCoreMLModelsAvailable() {
+                        Button(action: { downloadModelsTapped() }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: isDownloadingModels ? "arrow.down.circle.fill" : "arrow.down.circle")
+                                Text(isDownloadingModels ? "Downloading…" : "Download AI Models")
+                            }
                         }
-                    }
-                    .disabled(isDownloadingModels)
-                    .help("Fetch FastDVDnet + RealBasicVSR models into Application Support")
-                    if isDownloadingModels {
-                        ProgressView(value: modelDownloadProgress, total: 1.0)
-                            .frame(width: 120)
-                    }
-                    if !modelDownloadStatus.isEmpty {
-                        Text(modelDownloadStatus)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+                        .disabled(isDownloadingModels)
+                        .help("Fetch FastDVDnet + RealBasicVSR models into Application Support")
+                        if isDownloadingModels {
+                            ProgressView(value: modelDownloadProgress, total: 1.0)
+                                .frame(width: 120)
+                        }
+                        if !modelDownloadStatus.isEmpty {
+                            Text(modelDownloadStatus)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                     if selectedFile != nil {
                         Button("🗑️ Clear") {

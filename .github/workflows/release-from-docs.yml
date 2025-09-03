@@ -40,7 +40,8 @@ jobs:
           name: v${{ steps.ver.outputs.version }}
           files: |
             docs/Momento-${{ steps.ver.outputs.version }}.dmg
-            docs/*.zip
+            docs/FastDVDnet.mlpackage.zip
+            docs/RealBasicVSR_x2.mlpackage.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

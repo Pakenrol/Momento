@@ -156,7 +156,7 @@ if command -v codesign >/dev/null 2>&1; then
   fi
 fi
 
-# Optionally embed Sparkle (manual distribution without Xcode)
+# Embed Sparkle framework if available (SPM or vendor). Required when linking Sparkle dynamically.
 embed_sparkle() {
   local fw_src=""
   # Candidate locations: user-provided SPARKLE_DIST, third_party, SPM artifacts
@@ -200,9 +200,32 @@ embed_sparkle() {
   fi
 }
 
-if [[ "${EMBED_SPARKLE:-0}" == "1" ]]; then
-  echo "[5/6] Embedding Sparkle framework..."
-  embed_sparkle
+echo "[5/6] Embedding Sparkle framework (if present)..."
+embed_sparkle
+
+# Ensure the app has an rpath to Frameworks for dynamic frameworks (Sparkle)
+fix_rpath() {
+  local bin="$APP_DIR/Contents/MacOS/$APP_NAME"
+  local need="@executable_path/../Frameworks"
+  if command -v otool >/dev/null 2>&1 && command -v install_name_tool >/dev/null 2>&1; then
+    local has=$(otool -l "$bin" | awk '/LC_RPATH/{flag=1} /path/{if(flag){print $2; flag=0}}' | grep -F "$need" || true)
+    if [[ -z "$has" ]]; then
+      echo "Adding rpath $need to $bin"
+      install_name_tool -add_rpath "$need" "$bin" || true
+    fi
+  fi
+}
+fix_rpath
+
+# Re-sign after rpath change (required, as install_name_tool invalidates signature)
+if command -v codesign >/dev/null 2>&1; then
+  if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
+    echo "Re-signing app after rpath change with identity: $CODESIGN_IDENTITY"
+    codesign --force --timestamp --options runtime --deep --sign "$CODESIGN_IDENTITY" "$APP_DIR" || true
+  else
+    echo "Re-signing app (ad-hoc) after rpath change"
+    codesign --force -s - "$APP_DIR" || true
+  fi
 fi
 
 # Optionally build a DMG for distribution
